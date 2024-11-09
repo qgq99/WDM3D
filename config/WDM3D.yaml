@@ -1,0 +1,23 @@
+
+
+
+model:
+    backbone:
+        module: "fastvit_t8"
+        params:
+            fork_feat: True
+    
+    neck: 
+        base_neck:
+            module: ""
+        comp_neck:
+            module: ""
+        pe_neck:
+            module: ""
+
+    2D_detecor:
+        module: ""
+    
+
+    head:
+        module: ""
