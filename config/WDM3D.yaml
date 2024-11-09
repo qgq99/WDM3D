@@ -15,8 +15,11 @@ model:
         pe_neck:
             module: ""
 
-    2D_detecor:
-        module: ""
+    detecor_2d:
+        module: "DetectionModel"
+        params:
+            cfg: "/home/qinguoqing/project/WDM3D/config/yolo/yolov9-t.yaml"
+
     
 
     head:

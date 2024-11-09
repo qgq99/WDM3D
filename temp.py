@@ -11,6 +11,5 @@ from model.model import WDM3D
 
 model = WDM3D("/home/qinguoqing/project/WDM3D/config/WDM3D.yaml")
 
-print(model)
 
 
