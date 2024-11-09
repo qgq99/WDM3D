@@ -1,0 +1,6 @@
+README.md
+setup.py
+wdm3d.egg-info/PKG-INFO
+wdm3d.egg-info/SOURCES.txt
+wdm3d.egg-info/dependency_links.txt
+wdm3d.egg-info/top_level.txt
