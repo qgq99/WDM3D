@@ -3,9 +3,14 @@
 
 model:
     backbone:
-        module: "fastvit_t8"
+        module: "DINOv2"
         params:
-            fork_feat: True
+            model_name: "vits"
+
+    depther:
+        module: "DADepther"
+        params: {}
+
     
     neck: 
         base_neck:

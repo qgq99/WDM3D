@@ -11,6 +11,7 @@ import torch
 from torch import nn
 from model.backbone import *
 from model.detector_2d import *
+from model.depther import *
 import pdb
 
 
@@ -29,6 +30,9 @@ class WDM3D(nn.Module):
             self.cfg = config
         self.backbone = G[self.cfg["backbone"]["module"]](
             **self.cfg["backbone"]["params"])
+
+        self.depther = G[self.cfg["depther"]["module"]](
+            **self.cfg["depther"]["params"])
 
         # yolob9的parse_model会打印所创建的每一层的信息
         self.detector_2d = G[self.cfg["detecor_2d"]["module"]](
