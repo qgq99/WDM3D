@@ -17,7 +17,7 @@ model = WDM3D("/home/qinguoqing/project/WDM3D/config/WDM3D.yaml").to(device)
 
 
 
-print(model.depther)
+print(model.neck)
 
 
 

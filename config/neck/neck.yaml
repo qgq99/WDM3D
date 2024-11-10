@@ -1,0 +1,26 @@
+scales_base_neck_used: [0, 1, 2, 3]
+depth_scale: 200
+base_neck: null
+  # in_channels: [64, 128, 256, 512]
+  # out_channels: [64, 128, 256, 512]
+  # embedding_dim: 512
+  # scales: None
+  # cross_attn: true
+  # self_attn: true
+  # constrain: true
+  # positional_encoding:
+  #   type: 'SinePositionalEncoding'
+  #   num_feats: 256
+  # num_points: 8
+pe_mask_neck:
+  in_channels: [16, 32, 64, 128, 256, 512]
+  output_channel: 16
+  kernel_size: 3
+  padding: 1
+  stride: 1
+dynamic_pe_neck:
+  in_channels: [16, 32, 64, 128, 256, 512]
+  output_channel: 11
+  kernel_size: 3
+  padding: 1
+  stride: 1

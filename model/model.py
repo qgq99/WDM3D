@@ -12,28 +12,34 @@ from torch import nn
 from model.backbone import *
 from model.detector_2d import *
 from model.depther import *
+from model.head import *
+from model.neck import *
 import pdb
 
 
 G = globals()
 
-
 class WDM3D(nn.Module):
+
+    
 
     def __init__(self, config=None) -> None:
         super().__init__()
+
+        self.backbone: any
+        self.neck: any
+        self.depther: any
+        self.detector_2d: any
+        self.head: any
 
         if isinstance(config, str):
             with open(config) as f:
                 self.cfg = yaml.safe_load(f)["model"]
         else:
             self.cfg = config
-        self.backbone = G[self.cfg["backbone"]["module"]](
-            **self.cfg["backbone"]["params"])
 
-        self.depther = G[self.cfg["depther"]["module"]](
-            **self.cfg["depther"]["params"])
+        modules_names = ["backbone", "neck", "depther", "detector_2d", "head"]
+        for prop in modules_names:
+            setattr(self, prop, G[self.cfg[prop]["module"]](
+                **self.cfg[prop]["params"]))
 
-        # yolob9的parse_model会打印所创建的每一层的信息
-        self.detector_2d = G[self.cfg["detecor_2d"]["module"]](
-            **self.cfg["detecor_2d"]["params"])

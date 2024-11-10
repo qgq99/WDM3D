@@ -13,14 +13,11 @@ model:
 
     
     neck: 
-        base_neck:
-            module: ""
-        comp_neck:
-            module: ""
-        pe_neck:
-            module: ""
+        module: "build_composed_neck"
+        params:
+            config_filepath: "/home/qinguoqing/project/WDM3D/config/neck/neck.yaml"
 
-    detecor_2d:
+    detector_2d:
         module: "DetectionModel"
         params:
             cfg: "/home/qinguoqing/project/WDM3D/config/yolo/yolov9-t.yaml"
@@ -28,4 +25,6 @@ model:
     
 
     head:
-        module: ""
+        module: "WDM3DPredictorHead"
+        params:
+            channels: 256
