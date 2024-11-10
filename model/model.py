@@ -9,19 +9,19 @@
 import yaml
 import torch
 from torch import nn
+from utils.create_module import create_module
 from model.backbone import *
 from model.detector_2d import *
 from model.depther import *
 from model.head import *
 from model.neck import *
 import pdb
-
+ 
 
 G = globals()
 
-class WDM3D(nn.Module):
 
-    
+class WDM3D(nn.Module):
 
     def __init__(self, config=None) -> None:
         super().__init__()
@@ -38,8 +38,8 @@ class WDM3D(nn.Module):
         else:
             self.cfg = config
 
-        modules_names = ["backbone", "neck", "depther", "detector_2d", "head"]
-        for prop in modules_names:
-            setattr(self, prop, G[self.cfg[prop]["module"]](
-                **self.cfg[prop]["params"]))
+        for prop in ["backbone", "neck", "depther", "detector_2d", "head"]:
+            setattr(self, prop, create_module(G, self.cfg, prop))
 
+    def forward(self, x):
+        ...
