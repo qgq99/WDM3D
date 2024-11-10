@@ -11,7 +11,7 @@ conda create -n wdm3d python=3.10
 
 conda activate wdm3d
 
-conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+conda install pytorch==2.5.1 torchvision==0.20.1 pytorch-cuda=11.8 -c pytorch -c nvidia
 
 cd WDM3D
 
