@@ -7,6 +7,7 @@ from torchvision.transforms import Compose
 from model.backbone.vit.dinov2 import DINOv2
 from .util.blocks import FeatureFusionBlock, _make_scratch
 from .util.transform import Resize, NormalizeImage, PrepareForNet
+import pdb
 
 
 def _make_fusion_block(features, use_bn, size=None):
@@ -49,14 +50,20 @@ class DPTHead(nn.Module):
 
         self.use_clstoken = use_clstoken
 
+        if isinstance(in_channels, int):
+            in_channels = [in_channels] * len(out_channels)
+
+        assert len(in_channels) == len(
+            out_channels), "length of in_channels and out_channels must be the same"
+
         self.projects = nn.ModuleList([
             nn.Conv2d(
-                in_channels=in_channels,
+                in_channels=in_channel,
                 out_channels=out_channel,
                 kernel_size=1,
                 stride=1,
                 padding=0,
-            ) for out_channel in out_channels
+            ) for in_channel, out_channel in zip(in_channels, out_channels)
         ])
 
         self.resize_layers = nn.ModuleList([
@@ -117,12 +124,12 @@ class DPTHead(nn.Module):
             nn.Identity(),
         )
 
-    def forward_without_patch(self,out_features: list[torch.Tensor]):
+    def forward_without_patch(self, out_features: list[torch.Tensor]):
         """
         forward接受的out_features为[b, h*w, c], 不便于灵活替换backbone
 
         out_features: [b, c, h, w]
-        
+
         """
         b, c, h, w = out_features[0].shape
 
@@ -130,9 +137,10 @@ class DPTHead(nn.Module):
         for i, x in enumerate(out_features):
 
             x = self.projects[i](x)
-            x = self.resize_layers[i](x)
+            # x = self.resize_layers[i](x)
 
             out.append(x)
+
 
         layer_1, layer_2, layer_3, layer_4 = out
 
@@ -278,17 +286,15 @@ class DADepther(nn.Module):
     """
 
     def __init__(self,
-                 embed_dim=384,
+                 embed_dim=[64, 128, 256, 512],
                  features=256,
-                 out_channels=[256, 512, 1024, 1024],
+                 out_channels=[64, 128, 256, 512],
                  use_bn=False,
                  use_clstoken=False) -> None:
         super().__init__()
 
-
         self.depth_head = DPTHead(embed_dim, features,
                                   use_bn, out_channels=out_channels, use_clstoken=use_clstoken)
-    
 
     def forward(self, features):
         # patch_h, patch_w = x.shape[-2] // 14, x.shape[-1] // 14

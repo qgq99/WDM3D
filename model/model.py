@@ -50,8 +50,9 @@ class WDM3D(nn.Module):
         b, c, h, w = x.shape
         features = self.backbone(x)
 
-        neck_output = self.neck(features, h, w, targets)
-        return neck_output
+        pred = self.depther(features)
+
+        return pred
 
     def forward_test(self, x):
         pass

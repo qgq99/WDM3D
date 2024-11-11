@@ -24,8 +24,7 @@ def main():
     images = torch.randn((batch_size, 3, h, w)).to(device)
     pe_img_comput = torch.randn((batch_size, h, w)).to(device)
     res = model(images, targets=pe_img_comput)
-    pdb.set_trace()
-    print(res)
+    print(res[0])
 
 
 if __name__ == '__main__':
