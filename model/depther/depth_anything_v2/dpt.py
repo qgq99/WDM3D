@@ -117,6 +117,44 @@ class DPTHead(nn.Module):
             nn.Identity(),
         )
 
+    def forward_without_patch(self,out_features: list[torch.Tensor]):
+        """
+        forward接受的out_features为[b, h*w, c], 不便于灵活替换backbone
+
+        out_features: [b, c, h, w]
+        
+        """
+        b, c, h, w = out_features[0].shape
+
+        out = []
+        for i, x in enumerate(out_features):
+
+            x = self.projects[i](x)
+            x = self.resize_layers[i](x)
+
+            out.append(x)
+
+        layer_1, layer_2, layer_3, layer_4 = out
+
+        layer_1_rn = self.scratch.layer1_rn(layer_1)
+        layer_2_rn = self.scratch.layer2_rn(layer_2)
+        layer_3_rn = self.scratch.layer3_rn(layer_3)
+        layer_4_rn = self.scratch.layer4_rn(layer_4)
+
+        path_4 = self.scratch.refinenet4(layer_4_rn, size=layer_3_rn.shape[2:])
+        path_3 = self.scratch.refinenet3(
+            path_4, layer_3_rn, size=layer_2_rn.shape[2:])
+        path_2 = self.scratch.refinenet2(
+            path_3, layer_2_rn, size=layer_1_rn.shape[2:])
+        path_1 = self.scratch.refinenet1(path_2, layer_1_rn)
+
+        out = self.scratch.output_conv1(path_1)
+        out = F.interpolate(
+            out, (h, w), mode="bilinear", align_corners=True)
+        out = self.scratch.output_conv2(out)
+
+        return out
+
     def forward(self, out_features, patch_h, patch_w):
         out = []
         for i, x in enumerate(out_features):
@@ -252,8 +290,8 @@ class DADepther(nn.Module):
                                   use_bn, out_channels=out_channels, use_clstoken=use_clstoken)
     
 
-    def forward(self, features, patch_h, patch_w):
+    def forward(self, features):
         # patch_h, patch_w = x.shape[-2] // 14, x.shape[-1] // 14
-        depth = self.depth_head(features, patch_h, patch_w)
+        depth = self.depth_head.forward_without_patch(features)
         depth = F.relu(depth)
         return depth.squeeze(1)

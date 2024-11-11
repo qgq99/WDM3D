@@ -16,7 +16,7 @@ from model.depther import *
 from model.head import *
 from model.neck import *
 import pdb
- 
+
 
 G = globals()
 
@@ -26,11 +26,11 @@ class WDM3D(nn.Module):
     def __init__(self, config=None) -> None:
         super().__init__()
 
-        self.backbone: any
-        self.neck: any
-        self.depther: any
-        self.detector_2d: any
-        self.head: any
+        self.backbone: nn.Module
+        self.neck: nn.Module
+        self.depther: nn.Module
+        self.detector_2d: nn.Module
+        self.head: nn.Module
 
         if isinstance(config, str):
             with open(config) as f:
@@ -41,5 +41,17 @@ class WDM3D(nn.Module):
         for prop in ["backbone", "neck", "depther", "detector_2d", "head"]:
             setattr(self, prop, create_module(G, self.cfg, prop))
 
-    def forward(self, x):
-        ...
+    def forward(self, x: torch.Tensor, targets=None):
+        if self.training:
+            return self.forward_train(x, targets)
+        return self.forward_test(x)
+
+    def forward_train(self, x: torch.Tensor, targets):
+        b, c, h, w = x.shape
+        features = self.backbone(x)
+
+        neck_output = self.neck(features, h, w, targets)
+        return neck_output
+
+    def forward_test(self, x):
+        pass

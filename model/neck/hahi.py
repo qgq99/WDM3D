@@ -70,7 +70,7 @@ class HAHIHeteroNeck(BaseModule):
                  embedding_dim,
                  scales=None,
                  norm_cfg=dict(type='BN', requires_grad=True),
-                 act_cfg=dict(type='ReLU', inplace=True),
+                 act_cfg=dict(type='ReLU', inplace=False),
                  cross_att=True,
                  self_att=True,
                  constrain=False,

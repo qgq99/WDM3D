@@ -17,18 +17,20 @@ import yaml
 
 import pdb
 
+
 class ComposedNeck(nn.Module):
     """
     根据GEDepth的模型结构, 将三个neck的计算过程整合到一个模块
     """
+
     def __init__(
-            self, 
-            base_neck: nn.Module, 
-            pe_mask_neck: LightPEMASKNeck, 
-            dynamic_pe_neck: DynamicPENeckSOFT, 
-            depth_scale:int = 200,
-            scales_base_neck_used:list = [2,3,4,5]
-            ):
+            self,
+            base_neck: nn.Module,
+            pe_mask_neck: LightPEMASKNeck,
+            dynamic_pe_neck: DynamicPENeckSOFT,
+            depth_scale: int = 200,
+            scales_base_neck_used: list = [2, 3, 4, 5]
+    ):
         """
         scales_base_neck_used: base neck使用了哪些尺度特征进行运算. eg: backbone输出的是[c1, c2, c3, c4, c5, c6], 
             该属性默认值[2,3,4,5]表示使用下标2,3,4,5处的特征图, 即[c3, c4, c5, c6]
@@ -44,28 +46,28 @@ class ComposedNeck(nn.Module):
         indices: acoording to the depiction of GEDepth:
         "In line with the ground slope distribution in training data, we use 11 discrete angles evenly distributed in [−5, 5]."
         """
-        self.indices = torch.linspace(-5, 5, 11, device=torch.cuda.current_device()).reshape((1, 11, 1, 1))
-    
+        self.indices = torch.linspace(-5, 5, 11).reshape((1, 11, 1, 1))
 
     def dynamic_pe(self, x, y, pe_img_comput):
         """
-        
+
         x: output of the basic neck
         y: output of the pe_mask neck
-        pe_img_comput: 'guessing' the slope map of the img
+        pe_img_comput: 'guessing' the slope map of the img, need shape of [bs, h, w]
         """
         pe_img_comput = pe_img_comput.unsqueeze(1)
         pe_slope_k_for_loss = self.dynamic_pe_neck(x)
         # pdb.set_trace()
         pe_slope_k_for_loss = F.interpolate(pe_slope_k_for_loss, size=[pe_img_comput.shape[2], pe_img_comput.shape[3]],
-                                    mode='bilinear')
-        
+                                            mode='bilinear')
+
         pe_slope_k = F.softmax(pe_slope_k_for_loss, dim=1)
+        self.indices = self.indices.to(pe_slope_k.device)
         pe_slope_k = torch.sum(pe_slope_k * self.indices, dim=1)
         pe_slope_k = pe_slope_k.unsqueeze(1)
         pe_slope_k = torch.tan(torch.deg2rad(pe_slope_k))
 
-        h = 1.65 # basic ground height for KITTI
+        h = 1.65  # basic ground height for KITTI
 
         a = -h / (pe_img_comput + 1e-8)
         # pdb.set_trace()
@@ -77,14 +79,9 @@ class ComposedNeck(nn.Module):
         pe_mask = (pe_offset * pe_offset_mask) * y
         return pe_mask, pe_slope_k_for_loss
 
-
-
-        
-
-
     def forward(self, x, h, w, pe_img_comput):
         """
-        
+
         """
         ori_x = x
         x = self.base_neck(x)
@@ -92,17 +89,12 @@ class ComposedNeck(nn.Module):
         将base neck输出和初始特征融合一次
         """
         for i, v in enumerate(self.scales_base_neck_used):
-            ori_x[v] += x[i]
+            ori_x[v] = ori_x[v] + x[i]
         # pdb.set_trace()
         y, dynamic_y = self.pe_mask_neck(ori_x)
         y = F.interpolate(y, size=[h, w], mode="bilinear")
         pe_mask, pe_slope_k_ori = self.dynamic_pe(ori_x, y, pe_img_comput)
         return x, y, pe_mask, pe_slope_k_ori
-
-
-
-
-
 
 
 def build_composed_neck(config_filepath: str):
@@ -119,10 +111,6 @@ def build_composed_neck(config_filepath: str):
         depth_scale=cfg["depth_scale"],
         scales_base_neck_used=cfg["scales_base_neck_used"]
     )
-    
-
-
-
 
 
 if __name__ == "__main__":
@@ -150,5 +138,5 @@ if __name__ == "__main__":
     #                 print(_.shape)
     #         else:
     #             print(item.shape)
-    #     break    
+    #     break
     pass

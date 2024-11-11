@@ -1,1 +1,1 @@
-from .predictor_head import WDM3DPredictorHead
+from .head import WDM3DHead

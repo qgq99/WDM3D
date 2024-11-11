@@ -3,6 +3,7 @@ from torch import nn
 import torch.nn.functional as F
 import pdb
 
+
 class LightPEMASKNeck(nn.Module):
     """PEMASKNeck.
     """
@@ -26,6 +27,7 @@ class LightPEMASKNeck(nn.Module):
                 nn.init.xavier_uniform_(m.weight)
 
     def forward(self, inputs):
+        pdb.set_trace()
         scale_feats = inputs[::-1]
         x = torch.zeros_like(scale_feats[-1])
         for i in range(len(self.in_channels)):
@@ -35,12 +37,10 @@ class LightPEMASKNeck(nn.Module):
             conv_layer = getattr(self, f"conv{i}")
             tmp = conv_layer(scale_feats[i])
             if i < len(self.in_channels) - 1:
-                tmp = F.interpolate(tmp, size=[
-                                    scale_feats[-1].shape[2], scale_feats[-1].shape[3]], mode='bilinear', align_corners=True)
+                tmp = F.interpolate(tmp, size=[x.shape[2], x.shape[3]], mode='bilinear', align_corners=True)
             x += tmp
 
         return self.sigmoid(self.convfinal(x)), x
-
 
 
 def build_pe_mask_neck(cfg):
@@ -51,7 +51,6 @@ def build_pe_mask_neck(cfg):
         padding=cfg["padding"],
         stride=cfg["stride"]
     )
-
 
 
 if __name__ == "__main__":

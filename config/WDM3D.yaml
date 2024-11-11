@@ -3,13 +3,14 @@
 
 model:
     backbone:
-        module: "DINOv2"
-        params:
-            model_name: "vits"
+        module: "fastvit_s12"
+        params: 
+            fork_feat: True
 
     depther:
         module: "DADepther"
         params: {}
+
 
     
     neck: 
@@ -25,6 +26,14 @@ model:
     
 
     head:
-        module: "WDM3DPredictorHead"
+        module: "WDM3DHead"
         params:
-            channels: 256
+            horizon_head: 
+                module: "HorizonHead"
+                params:
+                    in_channel: 256
+                    mid_channel: 256
+            predictor_head:
+                module: "WDM3DPredictorHead"
+                params: 
+                    channels: 256
