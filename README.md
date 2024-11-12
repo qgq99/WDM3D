@@ -48,6 +48,9 @@ KITTI
             - ...
 ```
 2. generate depth maps by running the following command:
+
+This may take a little long time(about 40 minutes if not use interpolate else 2 hours), please be patient.
+
 ```
 python dataset/script/generate_depth_map.py --kitti_dir your_KIITI_dir
 ```
