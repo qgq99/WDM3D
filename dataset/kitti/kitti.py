@@ -1,23 +1,19 @@
 import os
-import csv
 import logging
-import random
-import pdb
 from math import ceil
 
 import cv2
 from sklearn.cluster import Birch
 import numpy as np
 import torch
-import torch.nn.functional as F
 from PIL import Image, ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 from torch.utils.data import Dataset
 from wavedata.tools.obj_detection import obj_utils
 from data.datasets.kitti_utils import Calibration
+from pathlib import Path
 
-import matplotlib.pyplot as plt
 
 from model.heatmap_coder import (
 	gaussian_radius,
@@ -29,7 +25,7 @@ from model.heatmap_coder import (
 
 from structures.params_3d import ParamsList
 from data.augmentations import get_composed_augmentations
-from .kitti_utils import Calibration, read_label, approx_proj_center, refresh_attributes, show_heatmap, show_image_with_boxes, show_edge_heatmap
+from .kitti_utils import Calibration, read_label, approx_proj_center
 
 from config import TYPE_ID_CONVERSION
 
@@ -47,12 +43,12 @@ def find_k(depth_map, pe):
 class KITTIDataset(Dataset):
 	def __init__(self, cfg, root, is_train=True, transforms=None, augment=True):
 		super(KITTIDataset, self).__init__()
-		self.root = root
-		self.image_dir = os.path.join(root, "image_2")
-		self.image_right_dir = os.path.join(root, "image_3")
-		self.label_dir = os.path.join(root, "label_2")
-		self.calib_dir = os.path.join(root, "calib")
-		self.planes_dir = os.path.join(root, "planes")
+		self.root = Path(root)
+		self.image_dir = self.root / "image_2"
+		self.image_right_dir = self.root / "image_3"
+		self.label_dir = self.root / "label_2"
+		self.calib_dir = self.root / "calib"
+		self.planes_dir = self.root / "planes"
 
 		self.split = cfg.DATASETS.TRAIN_SPLIT if is_train else cfg.DATASETS.TEST_SPLIT
 		self.is_train = is_train
@@ -146,6 +142,12 @@ class KITTIDataset(Dataset):
 			self.max_depth = 65
 			self.max_truncation = 0.7
 			self.max_occlusion = 2
+
+		
+		"""
+		self.mxmn_vals_map存储每个图像的深度值的最值, 键为图像名称, 值为[mx, mn]
+		"""
+		self.depth_mxmn_vals_map = self.load_depth_map_mxmn_vals()
 
 	def __len__(self):
 		if self.use_right_img:
@@ -441,6 +443,50 @@ class KITTIDataset(Dataset):
 
 		return zc
 	
+	
+
+	def load_depth_map_mxmn_vals(self):
+		"""
+		加载将每个图像的深度图的实际深度最值, 该最值将用于把深度图的像素值还原为实际深度值
+		"""
+		path = self.root / self.split / "depth" / "max_min_val.txt"
+		with open(path) as f:
+			for line in f:
+				[img_name, mx, mn] = [int(i) for i in line.strip().split()]
+				self.depth_mxmn_vals_map[img_name] = [mx, mn]
+		
+
+		
+
+
+
+
+	def load_depth_map(self, img_name, use_interpolated=False):
+		"""
+		加载由project/WDM3D/dataset/script/generate_depth_map.py生成的深度图
+		img_name: 要加载的图像名称
+		use_interpolated: 是否加载插值深度图
+		"""
+
+		path = self.root / self.split / "depth" / f"depth_map{'_interp' if use_interpolated else ''}" / f"{img_name}.png"
+		
+
+		[mx, mn] = self.depth_mxmn_vals_map[img_name]
+
+		depth = cv2.imread(path, -1)	# 不传第二个参数读取出来的将是3通道图
+
+		depth = ((depth - 1) / 254) * (mx - mn) + mn	# 归一化的逆操作
+
+		depth[depth == 0] = np.inf	# 值为0表示缺失深度值, 暂用无穷大表示
+
+		return depth
+
+
+
+
+
+
+
 	def generate_pseudo_depth_map(self, h, w, locations, img_coords):
 		"""
 		生成伪深度图
@@ -775,17 +821,12 @@ class KITTIDataset(Dataset):
 		# calculate pre-computed ground embeding
 		pe = self.calc_pe(img.size[1], img.size[0], calib)
 		# 每个目标中心在像素坐标系下的坐标
-		objs_center_image_coords, _ = calib.project_rect_to_image(locations)
-		pseudo_depth_map = self.generate_pseudo_depth_map(img.size[1], img.size[0], locations, objs_center_image_coords)
-		slope_map = self.generate_slope_map(pe, pseudo_depth_map)
-		# print(img.size, pe.shape, pseudo_depth_map.shape, slope_map.shape)
-		"""
-		TODO
-		1. 根据每个目标中心的像素坐标和其深度生成伪深度图;
-			- 伪深度图: 一个临时名称, 一个深度图, 只有每个目标中心处具有深度
-		
-		2. 实际上只有目标3D框地面中心的深度信息, monoCD代码使用的location为目标3D框中心的坐标, 后续实验对比使用地面坐标的效果
-		"""
+		# objs_center_image_coords, _ = calib.project_rect_to_image(locations)
+		# pseudo_depth_map = self.generate_pseudo_depth_map(img.size[1], img.size[0], locations, objs_center_image_coords)
+		depth_map = self.load_depth_map(Path(self.image_files[idx]).with_suffix(""), False)
+
+		slope_map = self.generate_slope_map(pe, depth_map)
+
 
 
 		target = ParamsList(image_size=img.size, is_train=self.is_train) 
@@ -823,6 +864,7 @@ class KITTIDataset(Dataset):
 		# set pre-computed ground embeding and slope map
 		target.add_field("pe", pe)
 		target.add_field("slope_map", slope_map)
+		target.add_field("depth_map", depth_map)
 
 		if self.enable_edge_fusion:
 			target.add_field('edge_len', input_edge_count)
