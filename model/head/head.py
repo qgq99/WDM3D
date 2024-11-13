@@ -10,7 +10,7 @@
 
 
 from torch import nn
-from utils.create_module import create_module
+from utils.wdm3d_utils import create_module
 from .horizon_head import HorizonHead
 from .predictor_head import WDM3DPredictorHead
 import pdb

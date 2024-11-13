@@ -9,7 +9,7 @@
 import yaml
 import torch
 from torch import nn
-from utils.create_module import create_module
+from utils.wdm3d_utils import create_module
 from model.backbone import *
 from model.detector_2d import *
 from model.depther import *

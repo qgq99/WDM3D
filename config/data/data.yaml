@@ -1,0 +1,39 @@
+dataset:
+    module: "KITTIDataset"
+    params:
+        root: "/home/qinguoqing/dataset/kitti"
+        split: "train"
+        detect_classes: ["Car"]
+        use_right_image: False
+        max_objects: 40
+        filter_anno_enable: True
+        filter_annos: [0.9, 20]
+        consider_outside_objs: True
+        filter_more_strictly: True
+        filter_more_smoothly: False
+
+        pred_ground_plane: True
+        use_ground_plane: False
+        horizon_gaussian_radius: 2
+        modify_ground_plane_d: False
+        enable_edge_fusion: True
+        use_edge_slope: False
+
+
+        orientation: "multi-bin"
+        orientation_bin_size: 4
+        input_width: 1280
+        input_height: 384
+        use_approx_center: False
+        approx_3d_center: "intersect"
+        keypoint_visible_modify: True
+        heatmap_center: "3D"
+        adjust_boundary_heatmap: True
+        heat_map_ratio: 0.5
+        aug_params: [[0.5]]
+
+
+
+        down_ratio: 4
+
+        loss_names: []

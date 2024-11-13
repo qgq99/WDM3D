@@ -6,10 +6,15 @@
 @Description : Description of this file
 """
 
-import torch
-from model.model import WDM3D
-import cv2
+# import torch
+# from model.model import WDM3D
+from utils.wdm3d_utils import load_config, create_module
+from dataset.kitti.kitti import KITTIDataset
+# import cv2
 import pdb
+
+G = globals()
+
 
 def main():
     # batch_size = 8
@@ -28,10 +33,10 @@ def main():
     
     # print(res[0])
 
-    path = "/home/qinguoqing/dataset/kitti/train/depth/depth_maps/000000.png"
-    img = cv2.imread(path, -1)
+    config = load_config()
     pdb.set_trace()
-    print(img)
+    dataset = create_module(G, config, "dataset")
+    print(dataset)
 
     
 
