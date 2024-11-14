@@ -268,16 +268,17 @@ def get_lidar_point_cloud(img_idx, calib_dir, velo_dir,
         return pts[point_filter].T
 
 
-def get_road_plane(img_idx, planes_dir):
+def get_road_plane(img_filename, planes_dir):
     """Reads the road plane from file
 
-    :param int img_idx : Index of image
+    :param string img_filename : filename of image
     :param str planes_dir : directory containing plane text files
 
     :return plane : List containing plane equation coefficients
     """
 
-    plane_file = planes_dir + '/%06d.txt' % img_idx
+    plane_file = planes_dir / img_filename
+    # '/%06d.txt' % img_idx
 
     with open(plane_file, 'r') as input_file:
         lines = input_file.readlines()

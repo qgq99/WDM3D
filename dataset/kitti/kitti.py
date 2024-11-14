@@ -1,3 +1,4 @@
+import pdb
 from .kitti_utils import Calibration, read_label, approx_proj_center
 from dataset.augmentations import get_composed_augmentations
 from structures.params_3d import ParamsList
@@ -10,7 +11,7 @@ from model.layer.heatmap_coder import (
 )
 from pathlib import Path
 from .kitti_utils import Calibration
-from wavedata.obj_detection import obj_utils
+from wavedata.obj_detection import *
 from torch.utils.data import Dataset
 import os
 import logging
@@ -20,9 +21,9 @@ import cv2
 from sklearn.cluster import Birch
 import numpy as np
 import torch
+from torch.nn import functional as F
 from PIL import Image, ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-
 
 TYPE_ID_CONVERSION = {
     'Car': 0,
@@ -51,13 +52,14 @@ class KITTIDataset(Dataset):
     def __init__(self, transforms=None, augment=True, *args, **config):
         super(KITTIDataset, self).__init__()
         self.root = Path(config["root"])
-        self.image_dir = self.root / "image_2"
-        self.image_right_dir = self.root / "image_3"
-        self.label_dir = self.root / "label_2"
-        self.calib_dir = self.root / "calib"
-        self.planes_dir = self.root / "planes"
-
         self.split = config["split"]
+
+        self.image_dir = self.root / self.split / "image_2"
+        self.image_right_dir = self.root / self.split / "image_3"
+        self.label_dir = self.root / self.split / "label_2"
+        self.calib_dir = self.root / self.split / "calib"
+        self.planes_dir = self.root / self.split / "planes"
+
         self.is_train = self.split == "train"
         self.transforms = transforms
         self.imageset_txt = self.root / self.split / \
@@ -194,8 +196,9 @@ class KITTIDataset(Dataset):
 
     def get_ground_planes(self, idx):
         if self.split != 'test':
-            idx = int(self.planes_files[idx].split('.')[0])
-            ground_plane = obj_utils.get_road_plane(idx, self.planes_dir)
+            # idx = int(self.planes_files[idx].split('.')[0])
+            img_filename = Path(self.image_files[idx]).with_suffix(".txt")
+            ground_plane = get_road_plane(img_filename, self.planes_dir)
 
         return ground_plane
 
@@ -401,7 +404,7 @@ class KITTIDataset(Dataset):
         # generate pixels on a horizontal line
         u = np.arange(0, horizon_heat_map.shape[2])
         v = K * u + B
-        v = np.round(v).astype(np.int)
+        v = np.round(v).astype(int)
         for center in zip(u, v):
             horizon_heat_map[0] = draw_umich_gaussian(
                 horizon_heat_map[0], center, radius)
@@ -480,8 +483,8 @@ class KITTIDataset(Dataset):
         path = self.root / self.split / "depth" / "max_min_val.txt"
         with open(path) as f:
             for line in f:
-                [img_name, mx, mn] = [float(i) for i in line.strip().split()]
-                depth_mxmn_vals_map[img_name] = [mx, mn]
+                [img_name, mx, mn] = line.strip().split()
+                depth_mxmn_vals_map[img_name] = [float(mx), float(mn)]
         return depth_mxmn_vals_map
 
     def load_depth_map(self, img_name, use_interpolated=False):
@@ -492,14 +495,13 @@ class KITTIDataset(Dataset):
         """
 
         path = self.root / self.split / "depth" / \
-            f"depth_map{'_interp' if use_interpolated else ''}" / \
+            f"depth_maps{'_interp' if use_interpolated else ''}" / \
             f"{img_name}.png"
-
-        [mx, mn] = self.depth_mxmn_vals_map[img_name]
+        [mx, mn] = self.depth_mxmn_vals_map[str(img_name)]
 
         depth = cv2.imread(path, -1)  # 不传第二个参数读取出来的将是3通道图
-
-        depth = ((depth - 1) / 254) * (mx - mn) + mn  # 归一化的逆操作
+        depth = np.where(depth > 0, ((depth - 1) / 254) *
+                         (mx - mn) + mn, depth)  # 归一化的逆操作
 
         depth[depth == 0] = np.inf  # 值为0表示缺失深度值, 暂用无穷大表示
 
@@ -809,7 +811,7 @@ class KITTIDataset(Dataset):
             if self.heatmap_center == '2D':
                 target_center = bbox_center.round().astype(np.int)
             else:
-                target_center = target_proj_center.round().astype(np.int)
+                target_center = target_proj_center.round().astype(int)
 
             # clip to the boundary
             target_center[0] = np.clip(target_center[0], x_min, x_max)
@@ -883,13 +885,21 @@ class KITTIDataset(Dataset):
         # show_heatmap(img, heat_map, index=original_idx)
         # show_heatmap(img, horizon_heat_map, classes=['horizon'])
 
+        depth_map = self.load_depth_map(
+            Path(self.image_files[idx]).with_suffix(""), False)
         # calculate pre-computed ground embeding
         pe = self.calc_pe(img.size[1], img.size[0], calib)
+
+        if depth_map.shape != pe.shape:
+            h, w = depth_map.shape
+            """
+            由于后续需要二者相加的操作, 因此若二者形状不同, 则将pe裁剪(depth_map形状为原图, pe经过transform更大)到与后者相同形状
+            """
+            pe = pe[:h, :w]
+
         # 每个目标中心在像素坐标系下的坐标
         # objs_center_image_coords, _ = calib.project_rect_to_image(locations)
         # pseudo_depth_map = self.generate_pseudo_depth_map(img.size[1], img.size[0], locations, objs_center_image_coords)
-        depth_map = self.load_depth_map(
-            Path(self.image_files[idx]).with_suffix(""), False)
 
         slope_map = self.generate_slope_map(pe, depth_map)
 

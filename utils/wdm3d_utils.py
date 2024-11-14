@@ -6,7 +6,7 @@
 @Description : Description of this file
 """
 import yaml
-
+from torch.utils.data import Dataset, DataLoader
 
 def create_module(g: dict, cfg: dict, module_name: str):
     """
@@ -31,3 +31,17 @@ def load_config(config_path: str = "/home/qinguoqing/project/WDM3D/config/exp/ex
         config[k] = load_config(config[k], sub_cfg_keys=[])[k]
     
     return config
+
+
+
+def kitti_collate(batch):
+    img, target, original_idx = zip(*batch)
+
+    return dict(img=img, target=target, original_idx=original_idx)
+
+
+
+def create_dataloader(dataset: Dataset, batch_size=8, shuffle=False, num_workers=4, collate_fn=kitti_collate):
+    dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, collate_fn=collate_fn)
+
+    return dataloader

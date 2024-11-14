@@ -8,10 +8,11 @@
 
 # import torch
 # from model.model import WDM3D
-from utils.wdm3d_utils import load_config, create_module
+from utils.wdm3d_utils import load_config, create_module, create_dataloader
 from dataset.kitti.kitti import KITTIDataset
-# import cv2
+import cv2
 import pdb
+import numpy as np
 
 G = globals()
 
@@ -36,7 +37,12 @@ def main():
     config = load_config()
     pdb.set_trace()
     dataset = create_module(G, config, "dataset")
-    print(dataset)
+    loader = create_dataloader(dataset, 4, False, 1)
+
+    for batch in loader:
+        print(batch)
+        break
+
 
     
 
