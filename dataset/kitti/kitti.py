@@ -503,6 +503,11 @@ class KITTIDataset(Dataset):
         depth = np.where(depth > 0, ((depth - 1) / 254) *
                          (mx - mn) + mn, depth)  # 归一化的逆操作
 
+        if depth.shape != (self.input_height, self.input_width):
+            # 若与输入尺寸不同则pad, 确保原图, 深度图以及pe尺寸一致
+            ph, pw = self.input_height - depth.shape[0], self.input_width - depth.shape[1]
+            depth = np.pad(depth, ((ph // 2, ph // 2 + int(ph % 2 == 1)),(pw // 2, pw // 2 + int(pw % 2 == 1))), "constant", constant_values=0)
+
         depth[depth == 0] = np.inf  # 值为0表示缺失深度值, 暂用无穷大表示
 
         return depth

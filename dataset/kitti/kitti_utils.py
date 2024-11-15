@@ -1330,5 +1330,4 @@ def show_horizon_heatmap(vis_target, horizon_heat_map):
 
 
 
-
     

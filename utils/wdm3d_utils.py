@@ -8,6 +8,7 @@
 import yaml
 from torch.utils.data import Dataset, DataLoader
 
+
 def create_module(g: dict, cfg: dict, module_name: str):
     """
     g: 应为globals()的返回值
@@ -26,12 +27,11 @@ def load_config(config_path: str = "/home/qinguoqing/project/WDM3D/config/exp/ex
     config = None
     with open(config_path) as f:
         config = yaml.safe_load(f)
-    
+
     for k in sub_cfg_keys:
         config[k] = load_config(config[k], sub_cfg_keys=[])[k]
-    
-    return config
 
+    return config
 
 
 def kitti_collate(batch):
@@ -40,8 +40,8 @@ def kitti_collate(batch):
     return dict(img=img, target=target, original_idx=original_idx)
 
 
-
 def create_dataloader(dataset: Dataset, batch_size=8, shuffle=False, num_workers=4, collate_fn=kitti_collate):
-    dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, collate_fn=collate_fn)
+    dataloader = DataLoader(dataset=dataset, batch_size=batch_size,
+                            shuffle=shuffle, num_workers=num_workers, collate_fn=collate_fn)
 
     return dataloader

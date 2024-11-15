@@ -31,7 +31,7 @@ def main():
     # images = torch.randn((batch_size, 3, h, w)).to(device)
     # pe_img_comput = torch.randn((batch_size, h, w)).to(device)
     # res = model(images, targets=pe_img_comput)
-    
+
     # print(res[0])
 
     config = load_config()
@@ -40,11 +40,8 @@ def main():
     loader = create_dataloader(dataset, 4, False, 1)
 
     for batch in loader:
-        print(batch)
+        print(batch["target"][0].get_field("depth_map").shape)
         break
-
-
-    
 
 
 if __name__ == '__main__':
