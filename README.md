@@ -1,5 +1,8 @@
 # WDM3D: Weakly-supervised depth-enhanced monocular 3D detector
 
+![](./assset/model_arch.jpg)
+
+
 ## Install
 
 run the following commands step by step
