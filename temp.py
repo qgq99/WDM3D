@@ -6,42 +6,50 @@
 @Description : Description of this file
 """
 
-# import torch
-# from model.model import WDM3D
+import torch
+from model.model import WDM3D
 from utils.wdm3d_utils import load_config, create_module, create_dataloader
 from dataset.kitti.kitti import KITTIDataset
-import cv2
+from torchvision.transforms import Compose, ToTensor
+# import cv2
 import pdb
 import numpy as np
 
 G = globals()
 
 
+trnasform = Compose([
+    ToTensor()
+])
+
+
 def main():
-    # batch_size = 8
-    # h, w = 384, 1280
+    batch_size = 8
+    h, w = 384, 1280
+    device = torch.device("cuda:1")
 
-    # # h = h + 14 - (h % 14)
-    # # w = w + 14 - (w % 14)
+    config = load_config("/home/qinguoqing/project/WDM3D/config/exp/exp.yaml")
+    dataset = create_module(G, config, "dataset")
 
-    # device = torch.device("cuda:1")
-    # model = WDM3D(
-    #     "/home/qinguoqing/project/WDM3D/config/WDM3D.yaml").to(device)
+    dataloader = create_dataloader(dataset=dataset)
+    model = WDM3D(config["model"]).to(device)
+    for img, targets, original_idx in dataloader:
+        img = img.to(device)
+        targets = [t.to(device) for t in targets]
+        pdb.set_trace()
+
+        res = model(img, targets)
+        print(res)
+        break
+
+    # model = WDM3D(``
+    #     "/home/qinguoqing/project/WDM3D/config/model/WDM3D.yaml").to(device)
 
     # images = torch.randn((batch_size, 3, h, w)).to(device)
     # pe_img_comput = torch.randn((batch_size, h, w)).to(device)
     # res = model(images, targets=pe_img_comput)
-
-    # print(res[0])
-
-    config = load_config()
-    pdb.set_trace()
-    dataset = create_module(G, config, "dataset")
-    loader = create_dataloader(dataset, 4, False, 1)
-
-    for batch in loader:
-        print(batch["target"][0].get_field("depth_map").shape)
-        break
+    # pdb.set_trace()
+    # print(res)
 
 
 if __name__ == '__main__':

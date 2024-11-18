@@ -6,6 +6,7 @@
 @Description : Description of this file
 """
 import yaml
+import torch
 from torch.utils.data import Dataset, DataLoader
 
 
@@ -36,8 +37,8 @@ def load_config(config_path: str = "/home/qinguoqing/project/WDM3D/config/exp/ex
 
 def kitti_collate(batch):
     img, target, original_idx = zip(*batch)
-
-    return dict(img=img, target=target, original_idx=original_idx)
+    img = torch.stack(list(img))
+    return img, target, original_idx
 
 
 def create_dataloader(dataset: Dataset, batch_size=8, shuffle=False, num_workers=4, collate_fn=kitti_collate):

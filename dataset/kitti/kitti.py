@@ -22,6 +22,7 @@ from sklearn.cluster import Birch
 import numpy as np
 import torch
 from torch.nn import functional as F
+from torchvision.transforms import Compose, ToTensor
 from PIL import Image, ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -48,8 +49,15 @@ def find_k(depth_map, pe):
     return k
 
 
+
+default_transform = Compose([
+    ToTensor()
+])
+
+
+
 class KITTIDataset(Dataset):
-    def __init__(self, transforms=None, augment=True, *args, **config):
+    def __init__(self, transforms=default_transform, augment=True, *args, **config):
         super(KITTIDataset, self).__init__()
         self.root = Path(config["root"])
         self.split = config["split"]
@@ -174,7 +182,9 @@ class KITTIDataset(Dataset):
 
     def get_image(self, idx):
         img_filename = os.path.join(self.image_dir, self.image_files[idx])
-        img = Image.open(img_filename).convert('RGB')
+        # img = Image.open(img_filename).convert('RGB')
+
+        img = cv2.imread(str(img_filename))
         return img
 
     def get_right_image(self, idx):
@@ -305,16 +315,16 @@ class KITTIDataset(Dataset):
         return valid_obj_list
 
     def pad_image(self, image):
-        img = np.array(image)
-        h, w, c = img.shape
+        # img = np.array(image)
+        h, w, c = image.shape
         ret_img = np.zeros((self.input_height, self.input_width, c))
         pad_y = (self.input_height - h) // 2
         pad_x = (self.input_width - w) // 2
 
-        ret_img[pad_y: pad_y + h, pad_x: pad_x + w] = img
+        ret_img[pad_y: pad_y + h, pad_x: pad_x + w] = image
         pad_size = np.array([pad_x, pad_y])
 
-        return Image.fromarray(ret_img.astype(np.uint8)), pad_size
+        return ret_img.astype(np.uint8), pad_size
 
     def get_vertical_edge(self, img):
         """
@@ -599,7 +609,8 @@ class KITTIDataset(Dataset):
         if self.pred_ground_plane:
             horizon_state = self.get_vertical_edge(img_before_aug_pad)
 
-        img_w, img_h = img.size
+        # img_w, img_h = img.size
+        h, w, _ = img.shape
         img, pad_size = self.pad_image(img)
         # for training visualize, use the padded images
         ori_img = np.array(img).copy() if self.is_train else img_before_aug_pad
@@ -608,21 +619,21 @@ class KITTIDataset(Dataset):
         x_min, y_min = int(np.ceil(
             pad_size[0] / self.down_ratio)), int(np.ceil(pad_size[1] / self.down_ratio))
         x_max, y_max = (
-            pad_size[0] + img_w - 1) // self.down_ratio, (pad_size[1] + img_h - 1) // self.down_ratio
+            pad_size[0] + w - 1) // self.down_ratio, (pad_size[1] + h - 1) // self.down_ratio
 
         if self.enable_edge_fusion:
             # generate edge_indices for the edge fusion module
             input_edge_indices = np.zeros(
                 [self.max_edge_length, 2], dtype=np.int64)
             edge_indices = self.get_edge_utils(
-                (img_w, img_h), pad_size).numpy()
+                (w, h), pad_size).numpy()
             input_edge_count = edge_indices.shape[0]
             input_edge_indices[: edge_indices.shape[0]] = edge_indices
             input_edge_count = input_edge_count - 1  # explain ?
 
         if self.split == 'test':
             # for inference we parametrize with original size
-            target = ParamsList(image_size=img.size, is_train=self.is_train)
+            target = ParamsList(image_size=(h, w), is_train=self.is_train)
             target.add_field("pad_size", pad_size)
             target.add_field("calib", calib)
             target.add_field("ori_img", ori_img)
@@ -730,7 +741,7 @@ class KITTIDataset(Dataset):
                                         corners_2d[:, 0].max(), corners_2d[:, 1].max()])
 
             if projected_box2d[0] >= 0 and projected_box2d[1] >= 0 and \
-                    projected_box2d[2] <= img_w - 1 and projected_box2d[3] <= img_h - 1:
+                    projected_box2d[2] <= w - 1 and projected_box2d[3] <= h - 1:
                 box2d = projected_box2d.copy()
             else:
                 box2d = obj.box2d.copy()
@@ -747,7 +758,7 @@ class KITTIDataset(Dataset):
 
             # generate approximate projected center when it is outside the image
             proj_inside_img = (
-                0 <= proj_center[0] <= img_w - 1) & (0 <= proj_center[1] <= img_h - 1)
+                0 <= proj_center[0] <= w - 1) & (0 <= proj_center[1] <= h - 1)
 
             approx_center = False
             if not proj_inside_img:
@@ -757,7 +768,7 @@ class KITTIDataset(Dataset):
                     center_2d = (box2d[:2] + box2d[2:]) / 2
                     if self.proj_center_mode == 'intersect':
                         target_proj_center, edge_index = approx_proj_center(
-                            proj_center, center_2d.reshape(1, 2), (img_w, img_h))
+                            proj_center, center_2d.reshape(1, 2), (w, h))
                         if target_proj_center is None:
                             # print('Warning: center_2d is not in image')
                             continue
@@ -777,9 +788,9 @@ class KITTIDataset(Dataset):
 
             # keypoints mask: keypoint must be inside the image and in front of the camera
             keypoints_x_visible = (keypoints_2D[:, 0] >= 0) & (
-                keypoints_2D[:, 0] <= img_w - 1)
+                keypoints_2D[:, 0] <= w - 1)
             keypoints_y_visible = (keypoints_2D[:, 1] >= 0) & (
-                keypoints_2D[:, 1] <= img_h - 1)
+                keypoints_2D[:, 1] <= h - 1)
             keypoints_z_visible = (keypoints_3D[:, -1] > 0)
 
             # xyz visible
@@ -893,22 +904,21 @@ class KITTIDataset(Dataset):
         depth_map = self.load_depth_map(
             Path(self.image_files[idx]).with_suffix(""), False)
         # calculate pre-computed ground embeding
-        pe = self.calc_pe(img.size[1], img.size[0], calib)
+        pe = self.calc_pe(self.input_height, self.input_width, calib)
 
-        if depth_map.shape != pe.shape:
-            h, w = depth_map.shape
-            """
-            由于后续需要二者相加的操作, 因此若二者形状不同, 则将pe裁剪(depth_map形状为原图, pe经过transform更大)到与后者相同形状
-            """
-            pe = pe[:h, :w]
+        # if depth_map.shape != pe.shape:
+        #     dh, dw = depth_map.shape
+        #     """
+        #     由于后续需要二者相加的操作, 因此若二者形状不同, 则将pe裁剪(depth_map形状为原图, pe经过transform更大)到与后者相同形状
+        #     """
+        #     pe = pe[:dh, :dw]
 
         # 每个目标中心在像素坐标系下的坐标
         # objs_center_image_coords, _ = calib.project_rect_to_image(locations)
         # pseudo_depth_map = self.generate_pseudo_depth_map(img.size[1], img.size[0], locations, objs_center_image_coords)
-
         slope_map = self.generate_slope_map(pe, depth_map)
 
-        target = ParamsList(image_size=img.size, is_train=self.is_train)
+        target = ParamsList(image_size=(h, w), is_train=self.is_train)
         target.add_field("cls_ids", cls_ids)
         target.add_field("target_centers", target_centers)
         target.add_field("keypoints", keypoints)
@@ -951,5 +961,6 @@ class KITTIDataset(Dataset):
             target.add_field('edge_indices', input_edge_indices)
 
         if self.transforms is not None:
-            img, target = self.transforms(img, target)
+            # img, target = self.transforms(img, target)
+            img = self.transforms(img)
         return img, target, original_idx

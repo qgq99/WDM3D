@@ -296,8 +296,14 @@ class DADepther(nn.Module):
         self.depth_head = DPTHead(embed_dim, features,
                                   use_bn, out_channels=out_channels, use_clstoken=use_clstoken)
 
-    def forward(self, features):
+    def forward(self, features, h, w):
+        """
+        h, w: 输出的尺寸
+        """
         # patch_h, patch_w = x.shape[-2] // 14, x.shape[-1] // 14
         depth = self.depth_head.forward_without_patch(features)
+        # pdb.set_trace()
         depth = F.relu(depth)
+        # depth = depth.squeeze(1)
+        depth = F.interpolate(depth, (h, w), mode="bilinear", align_corners=True)
         return depth.squeeze(1)
