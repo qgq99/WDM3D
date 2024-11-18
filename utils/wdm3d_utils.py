@@ -46,3 +46,13 @@ def create_dataloader(dataset: Dataset, batch_size=8, shuffle=False, num_workers
                             shuffle=shuffle, num_workers=num_workers, collate_fn=collate_fn)
 
     return dataloader
+
+
+
+def calc_model_params_count(model:torch.nn.Module):
+    cnt = 1
+    for p in model.parameters():
+        if p.requires_grad == True:
+            cnt += p.numel()
+    return cnt / 1024 / 1024
+

@@ -66,14 +66,21 @@ class WDM3D(nn.Module):
     def forward_train(self, x: torch.Tensor, targets):
         b, c, h, w = x.shape
         features = self.backbone(x)
+        # pdb.set_trace()
+        neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(features, h, w, torch.stack([t.get_field("slope_map") for t in targets]))
+
+        pdb.set_trace()
+
         bbox_2d = self.detector_2d(x)
 
-        depth_pred = self.depther(features, h, w)
+        depth_pred = self.depther(neck_output_feats, h, w)
 
 
         pseudo_LiDAR_points = self.calc_pseudo_LiDAR_point(depth_pred, [t.get_field("calib") for t in targets])
 
-        return bbox_2d, depth_pred, pseudo_LiDAR_points
+        
+
+        return bbox_2d, depth_pred, pseudo_LiDAR_points, neck_output_feats
 
     def forward_test(self, x):
         pass

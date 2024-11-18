@@ -27,7 +27,6 @@ class LightPEMASKNeck(nn.Module):
                 nn.init.xavier_uniform_(m.weight)
 
     def forward(self, inputs):
-        pdb.set_trace()
         scale_feats = inputs[::-1]
         x = torch.zeros_like(scale_feats[-1])
         for i in range(len(self.in_channels)):

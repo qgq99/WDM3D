@@ -8,7 +8,7 @@
 
 import torch
 from model.model import WDM3D
-from utils.wdm3d_utils import load_config, create_module, create_dataloader
+from utils.wdm3d_utils import load_config, create_module, create_dataloader, calc_model_params_count
 from dataset.kitti.kitti import KITTIDataset
 from torchvision.transforms import Compose, ToTensor
 # import cv2
@@ -31,7 +31,7 @@ def main():
     config = load_config("/home/qinguoqing/project/WDM3D/config/exp/exp.yaml")
     dataset = create_module(G, config, "dataset")
 
-    dataloader = create_dataloader(dataset=dataset)
+    dataloader = create_dataloader(dataset=dataset, batch_size=4)
     model = WDM3D(config["model"]).to(device)
     for img, targets, original_idx in dataloader:
         img = img.to(device)

@@ -3,7 +3,7 @@
 
 model:
     backbone:
-        module: "fastvit_s12"
+        module: "fastvit_t12"
         params: 
             fork_feat: True
 
