@@ -9,7 +9,8 @@
 import yaml
 import torch
 from torch import nn
-from utils.wdm3d_utils import create_module
+from utils.wdm3d_utils import create_module, calc_model_params_count
+from utils.general import non_max_suppression
 from dataset.kitti.kitti_utils import Calibration
 from model.backbone import *
 from model.detector_2d import *
@@ -56,6 +57,8 @@ class WDM3D(nn.Module):
 
         for prop in ["backbone", "neck", "depther", "detector_2d", "head"]:
             setattr(self, prop, create_module(G, self.cfg, prop))
+        
+        print(f"Successfully create WDM3D model, model parameter count: {calc_model_params_count(self):.2f}MB")
 
     def forward(self, x: torch.Tensor, targets=None): 
 
@@ -69,18 +72,19 @@ class WDM3D(nn.Module):
         # pdb.set_trace()
         neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(features, h, w, torch.stack([t.get_field("slope_map") for t in targets]))
 
-        pdb.set_trace()
 
-        bbox_2d = self.detector_2d(x)
+        detector_2d_output = self.detector_2d(x)
+        pdb.set_trace()
+        bbox_2d = non_max_suppression(detector_2d_output[0])
 
         depth_pred = self.depther(neck_output_feats, h, w)
 
 
         pseudo_LiDAR_points = self.calc_pseudo_LiDAR_point(depth_pred, [t.get_field("calib") for t in targets])
 
-        
+        pred = self.head(neck_output_feats, bbox_2d)
 
-        return bbox_2d, depth_pred, pseudo_LiDAR_points, neck_output_feats
+        return bbox_2d, depth_pred, pseudo_LiDAR_points, neck_output_feats, pred
 
     def forward_test(self, x):
         pass

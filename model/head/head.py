@@ -27,5 +27,10 @@ class WDM3DHead(nn.Module):
     
 
 
-    def forward(self, x):
-        pass
+    def forward(self, x, bbox):
+        last_feature = x[-1]
+        head_output = []
+
+        head_output.append(self.horizon_head(last_feature))
+        head_output.append(self.predictor_head(last_feature, bbox))
+        return head_output

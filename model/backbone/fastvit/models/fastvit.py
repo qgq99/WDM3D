@@ -8,7 +8,7 @@ from functools import partial
 from typing import List, Tuple, Optional, Union
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.layers import DropPath, trunc_normal_
@@ -17,25 +17,29 @@ from timm.layers import DropPath, trunc_normal_
 from .modules.mobileone import MobileOneBlock
 from .modules.replknet import ReparamLargeKernelConv
 
-try:
-    from mmseg.models.builder import BACKBONES as seg_BACKBONES
-    from mmseg.utils import get_root_logger
-    from mmcv.runner import _load_checkpoint
+# try:
+#     from mmseg.models.builder import BACKBONES as seg_BACKBONES
+#     from mmseg.utils import get_root_logger
+#     from mmcv.runner import _load_checkpoint
 
-    has_mmseg = True
-except ImportError:
-    print("If for semantic segmentation, please install mmsegmentation first")
-    has_mmseg = False
+#     has_mmseg = True
+# except ImportError:
+#     print("If for semantic segmentation, please install mmsegmentation first")
+#     has_mmseg = False
 
-try:
-    from mmdet.models.builder import BACKBONES as det_BACKBONES
-    from mmdet.utils import get_root_logger
-    from mmcv.runner import _load_checkpoint
+# try:
+#     from mmdet.models.builder import BACKBONES as det_BACKBONES
+#     from mmdet.utils import get_root_logger
+#     from mmcv.runner import _load_checkpoint
 
-    has_mmdet = True
-except ImportError:
-    print("If for detection, please install mmdetection first")
-    has_mmdet = False
+#     has_mmdet = True
+# except ImportError:
+#     print("If for detection, please install mmdetection first")
+#     has_mmdet = False
+
+
+def _load_checkpoint(*args, **kwargs):
+    raise "this function is to be implemented!"
 
 
 def _cfg(url="", **kwargs):
@@ -156,7 +160,8 @@ class MHSA(nn.Module):
             .reshape(B, N, 3, self.num_heads, self.head_dim)
             .permute(2, 0, 3, 1, 4)
         )
-        q, k, v = qkv.unbind(0)  # make torchscript happy (cannot use tensor as tuple)
+        # make torchscript happy (cannot use tensor as tuple)
+        q, k, v = qkv.unbind(0)
 
         # trick here to make q@k.t more stable
         attn = (q * self.scale) @ k.transpose(-2, -1)
@@ -572,7 +577,8 @@ class RepMixerBlock(nn.Module):
         )
 
         # Drop Path
-        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path = DropPath(
+            drop_path) if drop_path > 0.0 else nn.Identity()
 
         # Layer Scale
         self.use_layer_scale = use_layer_scale
@@ -639,7 +645,8 @@ class AttentionBlock(nn.Module):
         )
 
         # Drop path
-        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path = DropPath(
+            drop_path) if drop_path > 0.0 else nn.Identity()
 
         # Layer Scale
         self.use_layer_scale = use_layer_scale
@@ -653,7 +660,8 @@ class AttentionBlock(nn.Module):
 
     def forward(self, x):
         if self.use_layer_scale:
-            x = x + self.drop_path(self.layer_scale_1 * self.token_mixer(self.norm(x)))
+            x = x + self.drop_path(self.layer_scale_1 *
+                                   self.token_mixer(self.norm(x)))
             x = x + self.drop_path(self.layer_scale_2 * self.convffn(x))
         else:
             x = x + self.drop_path(self.token_mixer(self.norm(x)))
@@ -907,7 +915,8 @@ class FastViT(nn.Module):
             elif pretrained is not None:
                 ckpt_path = pretrained
 
-            ckpt = _load_checkpoint(ckpt_path, logger=logger, map_location="cpu")
+            ckpt = _load_checkpoint(
+                ckpt_path, logger=logger, map_location="cpu")
             if "state_dict" in ckpt:
                 _state_dict = ckpt["state_dict"]
             elif "model" in ckpt:
@@ -917,7 +926,8 @@ class FastViT(nn.Module):
 
             sterile_dict = FastViT._scrub_checkpoint(_state_dict, self)
             state_dict = sterile_dict
-            missing_keys, unexpected_keys = self.load_state_dict(state_dict, False)
+            missing_keys, unexpected_keys = self.load_state_dict(
+                state_dict, False)
 
     def forward_embeddings(self, x: torch.Tensor) -> torch.Tensor:
         x = self.patch_embed(x)

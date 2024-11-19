@@ -93,5 +93,5 @@ head:
    [-1, 1, RepNCSPELAN4, [64, 64, 32, 3]],  # 28
 
    # detect
-   [[28, 25, 22, 15, 18, 21], 1, DualDDetect, [nc]],  # Detect(P3, P4, P5)
+   [[28, 25, 22, 15, 18, 21], 1, DualDDetect4WDM3D, [nc]],  # Detect(P3, P4, P5)
   ]

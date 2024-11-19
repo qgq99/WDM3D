@@ -44,13 +44,15 @@ class WDM3DPredictorHead(nn.Module):
         )
 
     
-    def forward(self, features: torch.Tensor, bbox: torch.Tensor):
-        last_feat = features[-1]
-        if len(bbox.shape) == 3:
+    def forward(self, feature: torch.Tensor, bbox: torch.Tensor):
+
+        bbox = [item[:, :4] for item in bbox]
+
+        if type(bbox) == list:
             f = roi_align(
-                last_feat, [i/16 for i in bbox], (7, 7))
+                feature, [i/16 for i in bbox], (7, 7))
         else:
-            f = roi_align(last_feat, [bbox/16], (7, 7))
+            f = roi_align(feature, [bbox/16], (7, 7))
 
         f = f.view(-1, self.channels * 7 * 7)
 
