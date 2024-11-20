@@ -17,14 +17,11 @@ from model.detector_2d import *
 from model.depther import *
 from model.head import *
 from model.neck import *
+from model.layer import *
 import pdb
 
 
 G = globals()
-
-
-
-
 
 
 def project_depth_to_points(calib, depth, max_high):
@@ -45,6 +42,7 @@ class WDM3D(nn.Module):
 
         self.backbone: nn.Module
         self.neck: nn.Module
+        self.neck_fusion: nn.Module
         self.depther: nn.Module
         self.detector_2d: nn.Module
         self.head: nn.Module
@@ -55,12 +53,13 @@ class WDM3D(nn.Module):
         else:
             self.cfg = config
 
-        for prop in ["backbone", "neck", "depther", "detector_2d", "head"]:
+        for prop in ["backbone", "neck", "neck_fusion", "depther", "detector_2d", "head"]:
             setattr(self, prop, create_module(G, self.cfg, prop))
-        
-        print(f"Successfully create WDM3D model, model parameter count: {calc_model_params_count(self):.2f}MB")
 
-    def forward(self, x: torch.Tensor, targets=None): 
+        print(
+            f"Successfully create WDM3D model, model parameter count: {calc_model_params_count(self):.2f}MB")
+
+    def forward(self, x: torch.Tensor, targets=None):
 
         if self.training:
             return self.forward_train(x, targets)
@@ -70,32 +69,38 @@ class WDM3D(nn.Module):
         b, c, h, w = x.shape
         features = self.backbone(x)
         # pdb.set_trace()
-        neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(features, h, w, torch.stack([t.get_field("slope_map") for t in targets]))
-
+        neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(
+            features, h, w, torch.stack([t.get_field("slope_map") for t in targets]))
 
         detector_2d_output = self.detector_2d(x)
-        pdb.set_trace()
         bbox_2d = non_max_suppression(detector_2d_output[0])
 
-        depth_pred = self.depther(neck_output_feats, h, w)
+        depth_pred, depth_feat = self.depther(neck_output_feats, h, w)
 
+        pseudo_LiDAR_points = self.calc_pseudo_LiDAR_point(
+            depth_pred, [t.get_field("calib") for t in targets])
 
-        pseudo_LiDAR_points = self.calc_pseudo_LiDAR_point(depth_pred, [t.get_field("calib") for t in targets])
+        """
+        因为depth_feat与neck_output_feats[0]的尺寸相同, 先做初步融合
+        TODO: 验证相加, 相乘或更多融合操作的效果
+        """
+        neck_output_feats[0] = neck_output_feats[0] + depth_feat
+        pdb.set_trace()
 
-        pred = self.head(neck_output_feats, bbox_2d)
+        depth_aware_feats = self.neck_fusion(neck_output_feats)
 
-        return bbox_2d, depth_pred, pseudo_LiDAR_points, neck_output_feats, pred
+        pred = self.head(depth_aware_feats, bbox_2d)
+        return bbox_2d, depth_pred, pseudo_LiDAR_points, neck_output_feats, depth_aware_feats, pred
 
     def forward_test(self, x):
         pass
 
-
-
-    def calc_pseudo_LiDAR_point(self, depths:torch.Tensor, calibs: list[Calibration]):
+    def calc_pseudo_LiDAR_point(self, depths: torch.Tensor, calibs: list[Calibration]):
         pseudo_LiDAR_points = []
         tmp_depths = depths.clone().detach().cpu()
         for d, calib in zip(tmp_depths, calibs):
             # pdb.set_trace()
-            pseudo_LiDAR_points.append(project_depth_to_points(calib, d, max_high=100))
-        
+            pseudo_LiDAR_points.append(
+                project_depth_to_points(calib, d, max_high=100))
+
         return pseudo_LiDAR_points

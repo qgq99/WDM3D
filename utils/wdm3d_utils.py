@@ -10,6 +10,13 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 
+FUSION_METHOD = {
+    "plus": lambda x, y: x + y,
+    "mul": lambda x, y: x * y,
+    # "cat": lambda x, y: torch.cat([x, y], dim=1)    # 在通道维度cat
+}
+
+
 def create_module(g: dict, cfg: dict, module_name: str):
     """
     g: 应为globals()的返回值
@@ -48,11 +55,9 @@ def create_dataloader(dataset: Dataset, batch_size=8, shuffle=False, num_workers
     return dataloader
 
 
-
-def calc_model_params_count(model:torch.nn.Module):
+def calc_model_params_count(model: torch.nn.Module):
     cnt = 1
     for p in model.parameters():
         if p.requires_grad == True:
             cnt += p.numel()
     return cnt / 1024 / 1024
-

@@ -26,7 +26,7 @@ trnasform = Compose([
 def main():
     batch_size = 8
     h, w = 384, 1280
-    device = torch.device("cuda:1")
+    device = torch.device("cuda:0")
 
     config = load_config("/home/qinguoqing/project/WDM3D/config/exp/exp.yaml")
     dataset = create_module(G, config, "dataset")

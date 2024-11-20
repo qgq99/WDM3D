@@ -299,11 +299,12 @@ class DADepther(nn.Module):
     def forward(self, features, h, w):
         """
         h, w: 输出的尺寸
+
+        return: depth: 深度图预测值, 用于计算损失, depth_feat: 用于融合特征
         """
         # patch_h, patch_w = x.shape[-2] // 14, x.shape[-1] // 14
         depth = self.depth_head.forward_without_patch(features)
         # pdb.set_trace()
-        depth = F.relu(depth)
-        # depth = depth.squeeze(1)
-        depth = F.interpolate(depth, (h, w), mode="bilinear", align_corners=True)
-        return depth.squeeze(1)
+        depth_feat = F.relu(depth)
+        depth = F.interpolate(depth_feat, (h, w), mode="bilinear", align_corners=True)
+        return depth.squeeze(1), depth_feat

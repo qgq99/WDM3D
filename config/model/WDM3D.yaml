@@ -3,12 +3,12 @@
 
 model:
     backbone:
-        # module: "fastvit_t12"
-        # params: 
-        #     fork_feat: True
-        module: "DINOv2"
+        module: "fastvit_t12"
         params: 
-            model_name: "vits"
+            fork_feat: True
+        # module: "DINOv2"
+        # params: 
+        #     model_name: "vits"
 
     depther:
         module: "DADepther"
@@ -20,6 +20,10 @@ model:
         module: "build_composed_neck"
         params:
             config_filepath: "/home/qinguoqing/project/WDM3D/config/neck/neck.yaml"
+    
+    neck_fusion:
+        module: "FusionModule"
+        params: {}
 
     detector_2d:
         module: "DetectionModel"
