@@ -24,14 +24,13 @@ trnasform = Compose([
 
 
 def main():
-    batch_size = 8
-    h, w = 384, 1280
+    batch_size = 4
     device = torch.device("cuda:0")
 
     config = load_config("/home/qinguoqing/project/WDM3D/config/exp/exp.yaml")
     dataset = create_module(G, config, "dataset")
 
-    dataloader = create_dataloader(dataset=dataset, batch_size=4)
+    dataloader = create_dataloader(dataset=dataset, batch_size=batch_size)
     model = WDM3D(config["model"]).to(device)
     for img, targets, original_idx in dataloader:
         img = img.to(device)
@@ -41,15 +40,6 @@ def main():
         res = model(img, targets)
         print(res)
         break
-
-    # model = WDM3D(``
-    #     "/home/qinguoqing/project/WDM3D/config/model/WDM3D.yaml").to(device)
-
-    # images = torch.randn((batch_size, 3, h, w)).to(device)
-    # pe_img_comput = torch.randn((batch_size, h, w)).to(device)
-    # res = model(images, targets=pe_img_comput)
-    # pdb.set_trace()
-    # print(res)
 
 
 if __name__ == '__main__':

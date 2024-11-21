@@ -353,7 +353,7 @@ class Calibration(object):
     # ------- 2d to 3d ----------
     # ===========================
     def project_image_to_rect(self, uv_depth):
-        """ Input: nx3 first two channels are uv, 3rd channel
+        """ Input: nare uv, 3rx3 first two channels d channel
                    is depth in rect camera coord.
             Output: nx3 points in rect camera coord.
         """

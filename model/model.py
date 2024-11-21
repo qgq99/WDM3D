@@ -35,6 +35,25 @@ def project_depth_to_points(calib, depth, max_high):
     return cloud[valid]
 
 
+
+def select_depth_and_project_to_points(depth, calib, bboxes):
+    """
+    将bbox范围内的像素点选出来, 并用选出来的像素点计算为点云, 核心逻辑同project_depth_to_points
+    """
+    single_img_pseudo_point_cloud = np.zeros((0, 3))
+    for [x1, y1, x2, y2] in bboxes:
+        c, r = np.meshgrid(np.arange(x1, x2), np.arange(y1, y2))
+        points = np.stack([c, r, depth[x1: x2, y1: y2].T])
+        if 0 not in points.shape:
+            cloud = calib.project_image_to_velo(points)
+            single_img_pseudo_point_cloud = np.concatenate([single_img_pseudo_point_cloud, cloud])
+    
+    return single_img_pseudo_point_cloud
+
+
+
+
+
 class WDM3D(nn.Module):
 
     def __init__(self, config=None) -> None:
@@ -76,16 +95,19 @@ class WDM3D(nn.Module):
         bbox_2d = non_max_suppression(detector_2d_output[0])
 
         depth_pred, depth_feat = self.depther(neck_output_feats, h, w)
+        pdb.set_trace()
 
-        pseudo_LiDAR_points = self.calc_pseudo_LiDAR_point(
-            depth_pred, [t.get_field("calib") for t in targets])
+        # pseudo_LiDAR_points = self.calc_pseudo_LiDAR_point(
+        #     depth_pred, [t.get_field("calib") for t in targets])   
+             
+        pseudo_LiDAR_points = self.calc_selected_pseudo_LiDAR_point(
+            depth_pred, bbox_2d, [t.get_field("calib") for t in targets])
 
         """
         因为depth_feat与neck_output_feats[0]的尺寸相同, 先做初步融合
         TODO: 验证相加, 相乘或更多融合操作的效果
         """
         neck_output_feats[0] = neck_output_feats[0] + depth_feat
-        pdb.set_trace()
 
         depth_aware_feats = self.neck_fusion(neck_output_feats)
 
@@ -95,11 +117,29 @@ class WDM3D(nn.Module):
     def forward_test(self, x):
         pass
 
+
+    def calc_selected_pseudo_LiDAR_point(self, depths: torch.Tensor, bboxes: list[np.ndarray], calibs: list[Calibration]):
+        """
+        将bbox范围内的像素点选出来, 然后只用这些点计算伪点云
+        depths: [bs, h, w]
+        bboxes: [n, k], k >= 4, [x1, y1, x2, y2, ...]
+        """
+        pseudo_LiDAR_points = []
+        tmp_depths = depths.clone().detach().cpu()
+        for d, calib, bbox in zip(tmp_depths, calibs, bboxes):
+            bbox = bbox.clone().detach().type(torch.int32).cpu()
+            pseudo_LiDAR_points.append(select_depth_and_project_to_points(d, calib, bbox[:, :4]))
+
+        return pseudo_LiDAR_points
+
     def calc_pseudo_LiDAR_point(self, depths: torch.Tensor, calibs: list[Calibration]):
+        """
+        计算伪点云, 每个像素点都有一个深度, 因此每个像素对应一个点云中的点, shape[384, 1280]的深度图计算得到[491250, 3]的点云数据
+        """
         pseudo_LiDAR_points = []
         tmp_depths = depths.clone().detach().cpu()
         for d, calib in zip(tmp_depths, calibs):
-            # pdb.set_trace()
+            pdb.set_trace()
             pseudo_LiDAR_points.append(
                 project_depth_to_points(calib, d, max_high=100))
 
