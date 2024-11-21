@@ -1,4 +1,4 @@
-# WDM3D: Weakly-supervised depth-enhanced monocular 3D detector
+# WDM3D: **w**eakly-supervised **d**epth-enhanced **m**onocular **3D** detector
 
 ![](./assset/model_arch.jpg)
 
@@ -57,3 +57,14 @@ This may take a little long time(about 40 minutes if not use interpolate else 2 
 ```
 python dataset/script/generate_depth_map.py --kitti_dir your_KIITI_dir
 ```
+
+
+## Acknowledgement
+Thanks for the contribution of the following works:
+- [WeakM3D](https://github.com/SPengLiang/WeakM3D)
+- [Pseudo-LiDAR](https://github.com/mileyan/pseudo_lidar)
+- [MonoCD](https://github.com/dragonfly606/MonoCD)
+- [GEDepth](https://github.com/qcraftai/gedepth)
+- [FastViT](https://github.com/apple/ml-fastvit)
+- [Depth Anything V2](https://github.com/DepthAnything/Depth-Anything-V2)
+- [YOLOv9](https://github.com/WongKinYiu/yolov9)
