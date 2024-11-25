@@ -2,7 +2,7 @@
 -*- coding: utf-8 -*-
 @Time    : 2024-11-09 20:38:33
 @Author  : Qin Guoqing
-@File    : model.py.py
+@File    : model.py
 @Description : Description of this file
 """
 
@@ -18,6 +18,7 @@ from model.depther import *
 from model.head import *
 from model.neck import *
 from model.layer import *
+from loguru import logger
 import pdb
 
 
@@ -40,15 +41,18 @@ def select_depth_and_project_to_points(depth, calib, bboxes):
     """
     将bbox范围内的像素点选出来, 并用选出来的像素点计算为点云, 核心逻辑同project_depth_to_points
     """
-    single_img_pseudo_point_cloud = np.zeros((0, 3))
+    # single_img_pseudo_point_cloud = np.zeros((0, 3))
+    single_img_pseudo_roi_point_cloud = []
     for [x1, y1, x2, y2] in bboxes:
         c, r = np.meshgrid(np.arange(x1, x2), np.arange(y1, y2))
         points = np.stack([c, r, depth[x1: x2, y1: y2].T])
         if 0 not in points.shape:
             cloud = calib.project_image_to_velo(points)
-            single_img_pseudo_point_cloud = np.concatenate([single_img_pseudo_point_cloud, cloud])
+            # single_img_pseudo_point_cloud = np.concatenate([single_img_pseudo_point_cloud, cloud])
+            single_img_pseudo_roi_point_cloud.append(cloud)
     
-    return single_img_pseudo_point_cloud
+    # return single_img_pseudo_point_cloud
+    return single_img_pseudo_roi_point_cloud
 
 
 
@@ -75,8 +79,8 @@ class WDM3D(nn.Module):
         for prop in ["backbone", "neck", "neck_fusion", "depther", "detector_2d", "head"]:
             setattr(self, prop, create_module(G, self.cfg, prop))
 
-        print(
-            f"Successfully create WDM3D model, model parameter count: {calc_model_params_count(self):.2f}MB")
+        logger.success(f"Successfully create WDM3D model, model parameter count: {calc_model_params_count(self):.2f}MB")
+
 
     def forward(self, x: torch.Tensor, targets=None):
 
@@ -95,11 +99,11 @@ class WDM3D(nn.Module):
         bbox_2d = non_max_suppression(detector_2d_output[0])
 
         depth_pred, depth_feat = self.depther(neck_output_feats, h, w)
-        pdb.set_trace()
 
         # pseudo_LiDAR_points = self.calc_pseudo_LiDAR_point(
         #     depth_pred, [t.get_field("calib") for t in targets])   
-             
+        pdb.set_trace()
+            
         pseudo_LiDAR_points = self.calc_selected_pseudo_LiDAR_point(
             depth_pred, bbox_2d, [t.get_field("calib") for t in targets])
 

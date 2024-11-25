@@ -2,12 +2,13 @@
 -*- coding: utf-8 -*-
 @Time    : 2024-11-13 12:30:49
 @Author  : Qin Guoqing
-@File    : wdm3d_utils.py.py
+@File    : wdm3d_utils.py
 @Description : Description of this file
 """
 import yaml
 import torch
 from torch.utils.data import Dataset, DataLoader
+import numpy as np
 
 
 FUSION_METHOD = {
@@ -61,3 +62,17 @@ def calc_model_params_count(model: torch.nn.Module):
         if p.requires_grad == True:
             cnt += p.numel()
     return cnt / 1024 / 1024
+
+
+
+def calc_batch_lidar_y_center(point_cloud, instance_cnt):
+    """
+    instance_cnt: bbox的数量, 应等于len(point_cloud)
+    """
+    batch_lidar_y_center = np.zeros((instance_cnt, 1), dtype=np.float32)
+
+    for i in range(instance_cnt):
+        batch_lidar_y_center[i] = np.mean(point_cloud[i][:, 1])
+    
+
+    return batch_lidar_y_center

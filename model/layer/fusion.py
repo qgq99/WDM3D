@@ -1,3 +1,12 @@
+"""
+-*- coding: utf-8 -*-
+@Time    : 2024-11-21 17:10:14
+@Author  : Qin Guoqing
+@File    : fusion.py
+@Description : Description of this file
+"""
+
+
 import torch
 from torch import nn
 from torch.nn import functional as F

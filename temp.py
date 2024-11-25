@@ -2,7 +2,7 @@
 -*- coding: utf-8 -*-
 @Time    : 2024-11-09 20:46:07
 @Author  : Qin Guoqing
-@File    : temp.py.py
+@File    : temp.py
 @Description : Description of this file
 """
 
@@ -25,7 +25,7 @@ trnasform = Compose([
 
 def main():
     batch_size = 4
-    device = torch.device("cuda:0")
+    device = torch.device("cuda:1")
 
     config = load_config("/home/qinguoqing/project/WDM3D/config/exp/exp.yaml")
     dataset = create_module(G, config, "dataset")
