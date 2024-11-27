@@ -348,6 +348,7 @@ def calc_3d_loss(pred_3D, batch_RoI_points, batch_lidar_y_center,
 def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=[[0.8, 1.8, 0.8], [0.6, 1.8, 1.8], [1.6, 1.8, 4.]]):
     """
     """
+    pdb.set_trace()
     batch_lidar_y_center = np.zeros((bbox2d.shape[0], 1), dtype=np.float32)
     batch_lidar_orient = np.zeros((bbox2d.shape[0], 1), dtype=np.float32)
     batch_lidar_density = np.zeros(
@@ -451,19 +452,19 @@ class WDM3DLoss(nn.Module):
             bbox2d_loss = self.bbox2d_loss(
                 bbox2d_pred[i][:mn_obj_cnt, :4], bbox2d_gt[i][:mn_obj_cnt])
 
-        pdb.set_trace()
-        data = generate_data_for_loss(
-            roi_points, bbox2d_pred, sample_roi_points=self.sample_roi_points, dim_prior=self.dim_prior)
-        loss_3d = calc_3d_loss(
-            pred_3D=pred3d,
-            batch_RoI_points=roi_points,
-            bbox2d=bbox2d_gt,
-            batch_lidar_y_center=data["batch_lidar_y_center"],
-            batch_lidar_density=data["batch_lidar_density"],
-            batch_lidar_orient=data["batch_lidar_orient"],
-            batch_dim=data["batch_dim"],
-            P2=[c.P for c in calibs]
-        )
+            pdb.set_trace()
+            data = generate_data_for_loss(
+                roi_points[i], bbox2d_pred[i], sample_roi_points=self.sample_roi_points, dim_prior=self.dim_prior)
+            loss_3d = calc_3d_loss(
+                pred_3D=pred3d,
+                batch_RoI_points=roi_points,
+                bbox2d=bbox2d_gt,
+                batch_lidar_y_center=data["batch_lidar_y_center"],
+                batch_lidar_density=data["batch_lidar_density"],
+                batch_lidar_orient=data["batch_lidar_orient"],
+                batch_dim=data["batch_dim"],
+                P2=[c.P for c in calibs]
+            )
 
         total_loss = 0
         for l, w in zip([loss_3d, depth_loss, bbox2d_loss], self.loss_weights):

@@ -9,6 +9,7 @@ import yaml
 import torch
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
+import random
 
 
 FUSION_METHOD = {
@@ -76,3 +77,21 @@ def calc_batch_lidar_y_center(point_cloud, instance_cnt):
     
 
     return batch_lidar_y_center
+
+
+
+def random_bbox2d(h=384, w=1280, cls_cnt=80, device="cpu"):
+    """
+    随机生成一个bbox标签, 形如[x1, y1, x2, y2, conf, cls]
+    h, w: 假设标签属于一个尺寸为h*w的图像
+    """
+    cls = random.randint(0, cls_cnt-1)
+    conf = random.random()
+    x1, y1 = random.random() * h, random.random() * w
+
+    while True:
+        x2, y2 = random.random() * h, random.random() * w
+        if x2 >= x1 and y2 >= y1:
+            break
+    
+    return torch.tensor([x1, y1, x2, y2, conf, cls]).to(device)

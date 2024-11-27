@@ -9,7 +9,7 @@
 import yaml
 import torch
 from torch import nn
-from utils.wdm3d_utils import create_module, calc_model_params_count
+from utils.wdm3d_utils import create_module, calc_model_params_count, random_bbox2d
 from utils.general import non_max_suppression
 from dataset.kitti.kitti_utils import Calibration
 from model.backbone import *
@@ -45,7 +45,9 @@ def select_depth_and_project_to_points(depth, calib, bboxes):
     single_img_pseudo_roi_point_cloud = []
     for [x1, y1, x2, y2] in bboxes:
         c, r = np.meshgrid(np.arange(x1, x2), np.arange(y1, y2))
-        points = np.stack([c, r, depth[x1: x2, y1: y2].T])
+        points = np.stack([c, r, depth[x1: x2, y1: y2].T]).reshape((-1, 3))
+        # pdb.set_trace()
+
         if 0 not in points.shape:
             cloud = calib.project_image_to_velo(points)
             # single_img_pseudo_point_cloud = np.concatenate([single_img_pseudo_point_cloud, cloud])
@@ -90,19 +92,22 @@ class WDM3D(nn.Module):
 
     def forward_train(self, x: torch.Tensor, targets):
         b, c, h, w = x.shape
+        device = x.device
         features = self.backbone(x)
         # pdb.set_trace()
         neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(
             features, h, w, torch.stack([t.get_field("slope_map") for t in targets]))
+        # pdb.set_trace()
 
-        detector_2d_output = self.detector_2d(x)
-        bbox_2d = non_max_suppression(detector_2d_output[0])
+        # detector_2d_output = self.detector_2d(x)
+        # bbox_2d = non_max_suppression(detector_2d_output[0])
+        bbox_2d = [torch.stack([random_bbox2d(device=device) for _ in range(6)]) for __ in range(b)]
 
         depth_pred, depth_feat = self.depther(neck_output_feats, h, w)
 
         # pseudo_LiDAR_points = self.calc_pseudo_LiDAR_point(
         #     depth_pred, [t.get_field("calib") for t in targets])   
-        # pdb.set_trace()
+        pdb.set_trace()
             
         pseudo_LiDAR_points = self.calc_selected_pseudo_LiDAR_point(
             depth_pred, bbox_2d, [t.get_field("calib") for t in targets])
