@@ -3,3 +3,16 @@
 
 dataset: "/home/qinguoqing/project/WDM3D/config/data/data.yaml"
 model: "/home/qinguoqing/project/WDM3D/config/model/WDM3D.yaml"
+
+loss:
+    module: "WDM3DLoss"
+    params: 
+        sample_roi_points: 100
+        dim_prior: 1
+        loss_weights: [1, 0.9, 0.9]     # 依次为loss_3d, depth_loss, bbox2d_loss的权重
+        depth_loss:
+            module: "MSELoss"
+            params: {}
+        bbox2d_loss:
+            module: "SmoothL1Loss"
+            params: {}

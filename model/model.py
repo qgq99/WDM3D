@@ -102,7 +102,7 @@ class WDM3D(nn.Module):
 
         # pseudo_LiDAR_points = self.calc_pseudo_LiDAR_point(
         #     depth_pred, [t.get_field("calib") for t in targets])   
-        pdb.set_trace()
+        # pdb.set_trace()
             
         pseudo_LiDAR_points = self.calc_selected_pseudo_LiDAR_point(
             depth_pred, bbox_2d, [t.get_field("calib") for t in targets])
@@ -116,7 +116,7 @@ class WDM3D(nn.Module):
         depth_aware_feats = self.neck_fusion(neck_output_feats)
 
         pred = self.head(depth_aware_feats, bbox_2d)
-        return bbox_2d, depth_pred, pseudo_LiDAR_points, neck_output_feats, depth_aware_feats, pred
+        return bbox_2d, depth_pred, pseudo_LiDAR_points, pred
 
     def forward_test(self, x):
         pass
