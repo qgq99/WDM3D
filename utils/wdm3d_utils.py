@@ -58,26 +58,11 @@ def create_dataloader(dataset: Dataset, batch_size=8, shuffle=False, num_workers
 
 
 def calc_model_params_count(model: torch.nn.Module):
-    cnt = 1
+    cnt = 0
     for p in model.parameters():
         if p.requires_grad == True:
             cnt += p.numel()
     return cnt / 1024 / 1024
-
-
-
-def calc_batch_lidar_y_center(point_cloud, instance_cnt):
-    """
-    instance_cnt: bbox的数量, 应等于len(point_cloud)
-    """
-    batch_lidar_y_center = np.zeros((instance_cnt, 1), dtype=np.float32)
-
-    for i in range(instance_cnt):
-        batch_lidar_y_center[i] = np.mean(point_cloud[i][:, 1])
-    
-
-    return batch_lidar_y_center
-
 
 
 def random_bbox2d(h=384, w=1280, cls_cnt=80, device="cpu"):
@@ -93,5 +78,5 @@ def random_bbox2d(h=384, w=1280, cls_cnt=80, device="cpu"):
         x2, y2 = random.random() * h, random.random() * w
         if x2 >= x1 and y2 >= y1:
             break
-    
+
     return torch.tensor([x1, y1, x2, y2, conf, cls]).to(device)
