@@ -64,7 +64,7 @@ def main(args):
                 roi_points=pseudo_LiDAR_points,
                 bbox2d_pred= bbox_2d,
                 depth_pred=depth_pred,
-                pred3d=pred,
+                pred3d=pred[1],
                 bbox2d_gt=[t.get_field("2d_bboxes") for t in targets],
                 depth_gt=[t.get_field("depth_map") for t in targets],
                 calibs=[t.get_field("calib") for t in targets]

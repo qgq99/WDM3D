@@ -107,7 +107,7 @@ class WDM3D(nn.Module):
 
         # pseudo_LiDAR_points = self.calc_pseudo_LiDAR_point(
         #     depth_pred, [t.get_field("calib") for t in targets])   
-        pdb.set_trace()
+        # pdb.set_trace()
             
         pseudo_LiDAR_points = self.calc_selected_pseudo_LiDAR_point(
             depth_pred, bbox_2d, [t.get_field("calib") for t in targets])

@@ -122,6 +122,7 @@ def calc_dis_ray_tracing(wl, Ry, points, density, bev_box_center):
 
 
 def calc_dis_rect_object_centric(wl, Ry, points, density):
+    device = wl.device
     init_theta, length = torch.atan(
         wl[0] / wl[1]), torch.sqrt(wl[0] ** 2 + wl[1] ** 2) / 2  # 0.5:1
     corners = [((length * torch.cos(init_theta + Ry)).unsqueeze(0),
@@ -194,12 +195,16 @@ def calc_dis_rect_object_centric(wl, Ry, points, density):
     #
     # dis_point2center = torch.sqrt(points[:, 0]**2 + points[:, 1]**2)
     #################################################
-
+    pdb.set_trace()
     points_z = torch.cat([points, torch.zeros_like(points[:, :1])], dim=1)
-    vec0 = torch.tensor([corners[0][0], corners[0][1], 0])
-    vec1 = torch.tensor([corners[1][0], corners[1][1], 0])
-    vec2 = torch.tensor([corners[2][0], corners[2][1], 0])
-    vec3 = torch.tensor([corners[3][0], corners[3][1], 0])
+    vec0 = torch.tensor([corners[0][0], corners[0][1], 0],
+                        dtype=points_z.dtype, device=device)
+    vec1 = torch.tensor([corners[1][0], corners[1][1], 0],
+                        dtype=points_z.dtype, device=device)
+    vec2 = torch.tensor([corners[2][0], corners[2][1], 0],
+                        dtype=points_z.dtype, device=device)
+    vec3 = torch.tensor([corners[3][0], corners[3][1], 0],
+                        dtype=points_z.dtype, device=device)
 
     ''' calc direction of vectors'''
     cross0 = torch.cross(points_z, vec0.unsqueeze(
@@ -213,8 +218,9 @@ def calc_dis_rect_object_centric(wl, Ry, points, density):
 
     ''' calc angle across vectors'''
     norm_p = torch.sqrt(points_z[:, 0] ** 2 + points_z[:, 1] ** 2)
+
     norm_d = torch.sqrt(corners[0][0] ** 2 + corners[0]
-                        [1] ** 2).repeat(points_z.shape[0])
+                        [1] ** 2).repeat(points_z.shape[0], 1).view(-1)
     norm = norm_p * norm_d
 
     dot_vec0 = torch.matmul(points_z, vec0.unsqueeze(
@@ -246,9 +252,10 @@ def calc_dis_rect_object_centric(wl, Ry, points, density):
     angle_sum_all = torch.stack(
         [angle_sum0, angle_sum1, angle_sum2, angle_sum3], dim=1)
 
+    pdb.set_trace()
     choose_ind = cross_all & angle_sum_all
     dis_all = torch.stack([dis0, dis1, dis2, dis3],
-                          dim=1) / density.unsqueeze(1)
+                          dim=1) / density.view(-1, 1, 1)
     choose_dis = dis_all[choose_ind]
     choose_dis[choose_dis != choose_dis] = 0
 
@@ -261,27 +268,27 @@ def calc_3d_loss(pred_3D, batch_RoI_points, batch_lidar_y_center,
     """
     calc loss of 3d prediction, the code is derived from WeakM3D.
     """
+    # pdb.set_trace()
+    device = P2.device
     all_loss, count = 0, 0
-    per_sample = batch_RoI_points.shape[1]
-    fx = P2[:, 0, 0].view(-1, 1).repeat(1, per_sample).view(-1)
-    fy = P2[:, 1, 1].view(-1, 1).repeat(1, per_sample).view(-1)
-    cx = P2[:, 0, 2].view(-1, 1).repeat(1, per_sample).view(-1)
-    cy = P2[:, 1, 2].view(-1, 1).repeat(1, per_sample).view(-1)
+    # per_sample = batch_RoI_points.shape[1]
+
+    num_instance = len(batch_RoI_points)
+    fx = P2[0, 0].view(-1, 1).repeat(1, num_instance).view(-1)
+    fy = P2[1, 1].view(-1, 1).repeat(1, num_instance).view(-1)
+    cx = P2[0, 2].view(-1, 1).repeat(1, num_instance).view(-1)
+    cy = P2[1, 2].view(-1, 1).repeat(1, num_instance).view(-1)
 
     p_locXY, p_locZ, p_ortConf = pred_3D
 
-    bbox2d = bbox2d.view(-1, 4)
-    p_locXY = p_locXY.view(-1, 2)
-    p_locZ = p_locZ.view(-1, 1)
-    p_ortConf = p_ortConf.view(-1, 2)
+    # bbox2d = bbox2d.view(-1, 4)
+    # p_locXY = p_locXY.view(-1, 2)
+    # p_locZ = p_locZ.view(-1, 1)
+    # p_ortConf = p_ortConf.view(-1, 2)
+
     p_locXYZ = torch.cat([p_locXY, p_locZ], dim=1)
 
-    num_instance = bbox2d.shape[0]
-    batch_RoI_points = batch_RoI_points.view(num_instance, -1, 3)
-    batch_lidar_y_center = batch_lidar_y_center.view(num_instance)
-    batch_lidar_orient = batch_lidar_orient.view(num_instance)
-    batch_lidar_density = batch_lidar_density.view(num_instance, -1)
-    abs_dim = batch_dim.view(num_instance, 3)
+    # num_instance = bbox2d.shape[0]
 
     h, w, center_x, center_y = bbox2d[:, 3] - bbox2d[:, 1], \
         bbox2d[:, 2] - bbox2d[:, 0], \
@@ -297,20 +304,27 @@ def calc_3d_loss(pred_3D, batch_RoI_points, batch_lidar_y_center,
     alpha_ratio = F.normalize(p_ortConf, dim=1)
     Ry_pred = torch.atan2(alpha_ratio[:, 0], alpha_ratio[:, 1]) % np.pi
 
-    Ry = batch_lidar_orient
-    Alpha = -batch_lidar_orient
+    Ry = torch.tensor(batch_lidar_orient, device=device)
+    Alpha = torch.tensor(-batch_lidar_orient, device=device)
     trans_Ry = (torch.atan2(location_3d[:, 0], location_3d[:, 2])).detach()
     Alpha = (Alpha - trans_Ry) % np.pi
 
+    pdb.set_trace()
+    # batch_RoI_points = batch_RoI_points.view(num_instance, -1, 3)
+    # batch_lidar_y_center = batch_lidar_y_center.view(num_instance)
+    # batch_lidar_orient = batch_lidar_orient.view(num_instance)
+    # batch_lidar_density = batch_lidar_density.view(num_instance, -1)
+    # abs_dim = batch_dim.view(num_instance, 3)
+
     for i in range(len(p_locXYZ)):
         single_Ry = Ry[i]
-        single_wl = abs_dim[i, 1:]
+        single_wl = batch_dim[i, 1:]
         single_loc = location_3d[i]
         single_Alpha = Alpha[i]
         single_Ry_pred = Ry_pred[i]
 
-        single_depth_points = batch_RoI_points[i]
-        single_density = batch_lidar_density[i]
+        single_depth_points = torch.tensor(batch_RoI_points[i], device=device)
+        single_density = torch.tensor(batch_lidar_density[i], device=device)
         single_lidar_center_y = batch_lidar_y_center[i]
 
         if single_loc[2] > 3:
@@ -321,6 +335,7 @@ def calc_3d_loss(pred_3D, batch_RoI_points, batch_lidar_y_center,
 
         shift_depth_points = torch.stack([single_depth_points[:, 0] - single_loc[0],
                                           single_depth_points[:, 2] - single_loc[2]], dim=1)
+        pdb.set_trace()
         dis_error = calc_dis_rect_object_centric(
             single_wl, single_Ry, shift_depth_points, single_density)
         dis_error = torch.mean(dis_error)
@@ -348,14 +363,17 @@ def calc_3d_loss(pred_3D, batch_RoI_points, batch_lidar_y_center,
 def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=[[0.8, 1.8, 0.8], [0.6, 1.8, 1.8], [1.6, 1.8, 4.]]):
     """
     """
-    pdb.set_trace()
+    # pdb.set_trace()
     batch_lidar_y_center = np.zeros((bbox2d.shape[0], 1), dtype=np.float32)
     batch_lidar_orient = np.zeros((bbox2d.shape[0], 1), dtype=np.float32)
-    batch_lidar_density = np.zeros(
-        (bbox2d.shape[0], sample_roi_points), dtype=np.float32)
+    # batch_lidar_density = np.zeros(
+    #     (bbox2d.shape[0], sample_roi_points), dtype=np.float32)
+    batch_lidar_density = []   
     batch_dim = []
 
     for i in range(bbox2d.shape[0]):
+        pdb.set_trace()
+        sample_points_cnt = RoI_points[i].shape[0]
         y_coor = RoI_points[i][:, 1]
         batch_lidar_y_center[i] = np.mean(y_coor)
         y_thesh = (np.max(y_coor) + np.min(y_coor)) / 2
@@ -365,7 +383,7 @@ def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=
         if y_ind_points.shape[0] < 10:
             y_ind_points = RoI_points[i]
 
-        rand_ind = np.random.randint(0, y_ind_points.shape[0], 100)
+        rand_ind = np.random.randint(0, y_ind_points.shape[0], sample_points_cnt)
         depth_points_sample = y_ind_points[rand_ind]
         # batch_RoI_points[i] = depth_points_sample
         depth_points_np_xz = depth_points_sample[:, [0, 2]]
@@ -396,10 +414,15 @@ def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=
                 orient -= np.pi / 2
         batch_lidar_orient[i] = orient
 
-        '''density'''
+        '''
+        density
+        
+        下面的代码计算了每个点到其他点的距离是多少
+        np.sum(p_dis < 0.04, axis=1): 计算了对于每个点, 距离它0.04以内的点的数量是多少
+        '''
         p_dis = np.array([(i[0] - depth_points_sample[:, 0]) ** 2 + (i[2] - depth_points_sample[:, 2]) ** 2
                           for i in depth_points_sample])
-        batch_lidar_density[i] = np.sum(p_dis < 0.04, axis=1)
+        batch_lidar_density.append(np.sum(p_dis < 0.04, axis=1))
 
         '''
         dim
@@ -408,12 +431,12 @@ def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=
         # cls_dim_prior = dim_prior[cls_info[i]]
         cls_dim_prior = dim_prior[2]
         batch_dim.append(cls_dim_prior)
-    batch_dim = np.array(batch_dim)
-
+    batch_dim = torch.tensor(batch_dim)
+    pdb.set_trace()
     return dict(
         batch_lidar_y_center=batch_lidar_y_center,
         batch_lidar_orient=batch_lidar_orient,
-        batch_lidar_density=batch_lidar_density,
+        batch_lidar_density=np.array(batch_lidar_density),
         batch_dim=batch_dim
     )
 
@@ -435,12 +458,14 @@ class WDM3DLoss(nn.Module):
         """
         TODO: depth_gt总包含值为inf的像素点, 表示该像素点确实深度, 需要特别处理
         """
+        device = depth_pred.device
 
         batch_size = len(bbox2d_pred)
 
         depth_loss = 0
         bbox2d_loss = 0
-        pdb.set_trace()
+        loss_3d = 0
+        # pdb.set_trace()
         for i in range(batch_size):
             depth_loss = depth_loss + \
                 self.depth_loss(depth_pred[i], depth_gt[i])
@@ -449,21 +474,21 @@ class WDM3DLoss(nn.Module):
             处理预测到的目标数量和标签目标数量不同的情况
             """
             mn_obj_cnt = min(len(bbox2d_pred[i]), len(bbox2d_gt[i]))
-            bbox2d_loss = self.bbox2d_loss(
+            bbox2d_loss = bbox2d_loss + self.bbox2d_loss(
                 bbox2d_pred[i][:mn_obj_cnt, :4], bbox2d_gt[i][:mn_obj_cnt])
 
-            pdb.set_trace()
+            # pdb.set_trace()
             data = generate_data_for_loss(
                 roi_points[i], bbox2d_pred[i], sample_roi_points=self.sample_roi_points, dim_prior=self.dim_prior)
-            loss_3d = calc_3d_loss(
-                pred_3D=pred3d,
-                batch_RoI_points=roi_points,
-                bbox2d=bbox2d_gt,
+            loss_3d = loss_3d + calc_3d_loss(
+                pred_3D=(pred3d[0][i], pred3d[1][i], pred3d[2][i]),
+                batch_RoI_points=roi_points[i],
+                bbox2d=bbox2d_pred[i][:mn_obj_cnt, :4],
                 batch_lidar_y_center=data["batch_lidar_y_center"],
                 batch_lidar_density=data["batch_lidar_density"],
                 batch_lidar_orient=data["batch_lidar_orient"],
-                batch_dim=data["batch_dim"],
-                P2=[c.P for c in calibs]
+                batch_dim=data["batch_dim"].to(device),
+                P2=torch.tensor(calibs[i].P, device=device)
             )
 
         total_loss = 0

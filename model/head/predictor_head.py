@@ -9,7 +9,7 @@
 import torch
 from torch import nn
 from torchvision.ops import roi_align
-
+import pdb
 
 
 class WDM3DPredictorHead(nn.Module):
@@ -43,9 +43,8 @@ class WDM3DPredictorHead(nn.Module):
             nn.Linear(256, 2),
         )
 
-    
     def forward(self, feature: torch.Tensor, bbox: torch.Tensor):
-
+        b, c, h, w = feature.shape
         bbox = [item[:, :4] for item in bbox]
 
         if type(bbox) == list:
@@ -56,10 +55,8 @@ class WDM3DPredictorHead(nn.Module):
 
         f = f.view(-1, self.channels * 7 * 7)
 
-        location_xy = self.location_xy(f)
-        location_xy = location_xy.view(-1, 2)
-
-        location_z = self.location_z(f)
-        orientation_conf = self.orientation_conf(f)
+        location_xy = self.location_xy(f).view(b, -1, 2)
+        location_z = self.location_z(f).view(b, -1, 1)
+        orientation_conf = self.orientation_conf(f).view(b, -1, 2)
 
         return location_xy, location_z, orientation_conf
