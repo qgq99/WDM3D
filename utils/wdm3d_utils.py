@@ -10,6 +10,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import random
+import time
 
 
 FUSION_METHOD = {
@@ -69,14 +70,33 @@ def random_bbox2d(h=384, w=1280, cls_cnt=80, device="cpu"):
     """
     随机生成一个bbox标签, 形如[x1, y1, x2, y2, conf, cls]
     h, w: 假设标签属于一个尺寸为h*w的图像
+
+    +10 -10 为防止生成的长度或宽度为0, 即x1 == x2 or y1 == y2
     """
     cls = random.randint(0, cls_cnt-1)
     conf = random.random()
-    x1, y1 = random.random() * h, random.random() * w
+    x1, y1 = random.random() * (h - 10), random.random() * (w - 10)
 
-    while True:
-        x2, y2 = random.random() * h, random.random() * w
-        if x2 >= x1 and y2 >= y1:
-            break
-
+    x2 = random.random() * (h - x1 - 10) + x1 + 10
+    y2 = random.random() * (w - y1 - 10) + y1 + 10
     return torch.tensor([x1, y1, x2, y2, conf, cls]).to(device)
+
+
+class Timer:
+    """
+    用于计算并显示程序耗时的工具
+    usage:
+        with Timer("forward"):
+            result = model(imgs)
+    """
+
+    def __init__(self, title=""):
+        self.title = title
+
+    def __enter__(self):
+        self.start = time.time()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        print(
+            f"Time consumption of [{self.title}]: {time.time() - self.start:.4f}s")
+        del self

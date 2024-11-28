@@ -47,7 +47,6 @@ def select_depth_and_project_to_points(depth, calib, bboxes):
         c, r = np.meshgrid(np.arange(x1, x2), np.arange(y1, y2))
         points = np.stack([c, r, depth[x1: x2, y1: y2].T]).reshape((-1, 3))
         # pdb.set_trace()
-
         if 0 not in points.shape:
             cloud = calib.project_image_to_velo(points)
             # single_img_pseudo_point_cloud = np.concatenate([single_img_pseudo_point_cloud, cloud])
@@ -97,8 +96,8 @@ class WDM3D(nn.Module):
         # pdb.set_trace()
         neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(
             features, h, w, torch.stack([t.get_field("slope_map") for t in targets]))
+        
         # pdb.set_trace()
-
         # detector_2d_output = self.detector_2d(x)
         # bbox_2d = non_max_suppression(detector_2d_output[0])
         bbox_2d = [torch.stack([random_bbox2d(device=device) for _ in range(6)]) for __ in range(b)]
