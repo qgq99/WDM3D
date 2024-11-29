@@ -49,7 +49,7 @@ def select_depth_and_project_to_points(depth, calib, bboxes):
         # pdb.set_trace()
         if 0 not in points.shape:
             cloud = calib.project_image_to_velo(points)
-            # single_img_pseudo_point_cloud = np.concatenate([single_img_pseudo_point_cloud, cloud])
+            # pdb.set_trace()
             single_img_pseudo_roi_point_cloud.append(cloud)
     
     # return single_img_pseudo_point_cloud
