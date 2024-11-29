@@ -72,7 +72,7 @@ def main(args):
                     depth_gt=[t.get_field("depth_map") for t in targets],
                     calibs=[t.get_field("calib") for t in targets]
                 )
-            # logger.info(f"batch loss: {batch_loss.item()}")
+            logger.info(f"batch loss: {batch_loss.item()}")
             # break
         break
 

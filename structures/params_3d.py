@@ -14,7 +14,7 @@ class ParamsList():
 
     def add_field(self, field, field_data):
         if not isinstance(field_data, (Calibration, torch.Tensor)):
-            field_data = torch.as_tensor(field_data)
+            field_data = torch.as_tensor(field_data, dtype=torch.float32)
 
         self.extra_fields[field] = field_data
 

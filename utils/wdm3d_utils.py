@@ -82,6 +82,27 @@ def random_bbox2d(h=384, w=1280, cls_cnt=80, device="cpu"):
     return torch.tensor([x1, y1, x2, y2, conf, cls]).to(device)
 
 
+def format_sec(s):
+    """
+    将秒数转换为易读格式
+    :param s: 秒数
+    :return:
+    """
+    D = 24 * 60 * 60  # 每天秒数
+    H = 60 * 60  # 每小时秒数
+    M = 60  # 每分钟秒数
+    day = int(s // D)
+    hour = int((s - day * D) // H)
+    minute = int((s - day * D - hour * H) // M)
+    seconds = s - day * D - hour * H - minute * M
+
+    day = f"{day}天" if day > 0 else ""
+    hour = f"{hour}小时" if hour > 0 else ""
+    minute = f"{minute}分钟" if minute > 0 else ""
+    return day + hour + minute + f"{seconds:.4f}秒"
+
+
+
 class Timer:
     """
     用于计算并显示程序耗时的工具
@@ -90,13 +111,13 @@ class Timer:
             result = model(imgs)
     """
 
-    def __init__(self, title=""):
-        self.title = title
+    def __init__(self, consumer=""):
+        self.consumer = consumer
 
     def __enter__(self):
         self.start = time.time()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         print(
-            f"Time consumption of [{self.title}]: {time.time() - self.start:.4f}s")
+            f"Time consumption of [{self.consumer}]: {format_sec(time.time() - self.start)}")        
         del self

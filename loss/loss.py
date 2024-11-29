@@ -455,11 +455,18 @@ G = globals()
 
 class WDM3DLoss(nn.Module):
 
-    def __init__(self, sample_roi_points=100, dim_prior=[[0.8, 1.8, 0.8], [0.6, 1.8, 1.8], [1.6, 1.8, 4.]], loss_weights=[1, 0.9, 0.9], *args, **config) -> None:
+    def __init__(self, sample_roi_points=100, dim_prior=[[0.8, 1.8, 0.8], [0.6, 1.8, 1.8], [1.6, 1.8, 4.]], loss_weights=[1, 0.9, 0.9], inf_pixel_loss=0.001, *args, **config) -> None:
+        """
+        sample_roi_points: 每个实例采样多少个点云中的点
+        dim_prior: 
+        loss_weights: 依次为3dloss, depth loos, 2d bbox loss的权重
+        inf_pixel_loss: 在计算depth loss时, 每个缺失深度信息的像素记多大的loss值
+        """
         super().__init__()
         self.sample_roi_points = sample_roi_points
         self.dim_prior = dim_prior
         self.loss_weights = loss_weights
+        self.inf_pixel_loss = inf_pixel_loss
         self.depth_loss = create_module(G, config, "depth_loss")
         self.bbox2d_loss = create_module(G, config, "bbox2d_loss")
 
@@ -468,7 +475,6 @@ class WDM3DLoss(nn.Module):
         TODO: depth_gt总包含值为inf的像素点, 表示该像素点确实深度, 需要特别处理
         """
         device = depth_pred.device
-
         batch_size = len(bbox2d_pred)
 
         depth_loss = 0
@@ -476,8 +482,17 @@ class WDM3DLoss(nn.Module):
         loss_3d = 0
         # pdb.set_trace()
         for i in range(batch_size):
+            """
+            处理深度图中缺失深度信息的像素(值为inf)
+            暂行方法：
+            由于深度预测不会出现inf, 因此每个gt为inf的像素给定一个较小的损失值
+            TODO: 消融实验验证多种方法
+            """
+            depth_inf_mask = depth_gt[i] == torch.inf
+            depth_gt[i][depth_inf_mask] = depth_pred[i][depth_inf_mask]
             depth_loss = depth_loss + \
-                self.depth_loss(depth_pred[i], depth_gt[i])
+                self.depth_loss(depth_pred[i], depth_gt[i]) + \
+                torch.sum(depth_inf_mask) * self.inf_pixel_loss
 
             """
             处理预测到的目标数量和标签目标数量不同的情况
