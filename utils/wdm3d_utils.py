@@ -10,6 +10,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import random
+from torch.optim import Adam, AdamW, SGD
 import time
 
 
@@ -17,6 +18,12 @@ FUSION_METHOD = {
     "plus": lambda x, y: x + y,
     "mul": lambda x, y: x * y,
     # "cat": lambda x, y: torch.cat([x, y], dim=1)    # 在通道维度cat
+}
+
+OPTIMIZER = {
+    "Adam": Adam,
+    "AdamW": AdamW,
+    "SGD": SGD
 }
 
 
@@ -56,6 +63,10 @@ def create_dataloader(dataset: Dataset, batch_size=8, shuffle=False, num_workers
                             shuffle=shuffle, num_workers=num_workers, collate_fn=collate_fn)
 
     return dataloader
+
+
+def create_optimizer(model: torch.nn.Module, config: dict):
+    return OPTIMIZER[config["module"]](params=model.parameters(), **config["params"])
 
 
 def calc_model_params_count(model: torch.nn.Module):
@@ -102,7 +113,6 @@ def format_sec(s):
     return day + hour + minute + f"{seconds:.4f}秒"
 
 
-
 class Timer:
     """
     用于计算并显示程序耗时的工具
@@ -111,13 +121,19 @@ class Timer:
             result = model(imgs)
     """
 
-    def __init__(self, consumer=""):
+    def __init__(self, consumer="", work=True):
+        """
+        work: 是否工作
+        """
         self.consumer = consumer
+        self.work = work
 
     def __enter__(self):
-        self.start = time.time()
+        if self.work:
+            self.start = time.time()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        print(
-            f"Time consumption of [{self.consumer}]: {format_sec(time.time() - self.start)}")        
+        if self.work:
+            print(
+                f"Time consumption of [{self.consumer}]: {format_sec(time.time() - self.start)}")
         del self

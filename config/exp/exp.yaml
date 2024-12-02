@@ -17,3 +17,8 @@ loss:
         bbox2d_loss:
             module: "SmoothL1Loss"
             params: {}
+
+optimizer:
+    module: "Adam"
+    params:
+        lr: 0.01

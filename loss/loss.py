@@ -17,6 +17,7 @@ import pdb
 
 
 def calc_dis_ray_tracing(wl, Ry, points, density, bev_box_center):
+    # pdb.set_trace()
     init_theta, length = torch.atan(
         wl[0] / wl[1]), torch.sqrt(wl[0] ** 2 + wl[1] ** 2) / 2  # 0.5:1
     corners = [((length * torch.cos(init_theta + Ry) + bev_box_center[0]).unsqueeze(0),
@@ -103,11 +104,26 @@ def calc_dis_ray_tracing(wl, Ry, points, density, bev_box_center):
     dis_in = (torch.sum(dis_in_mul, dim=1) == 2).type(torch.bool)
     if torch.sum(dis_in.int()) < 3:
         return 0
+    """
+    此处代码有逻辑问题
+    dis_in由dis_in_mul降维计算得到, 直接用dis_in去索引必然报错
+
+    from gpt:
+    dis_in = (torch.sum(dis_in_mul, dim=1) == 2).type(torch.bool)
+    这行代码检查每个交点是否满足同时位于两个边的范围内。这里使用 torch.sum(dis_in_mul, dim=1) 来计算每个交点与四个边的关系，
+    只有当一个交点位于两个边之间时，其和才为 2。然后通过 == 2 得到一个布尔值，表示哪些交点满足这个条件。
+
+    所以下面的索引操作应该是将位于两个边范围内的点选出来,
+    dis_in_mul [1, 4, 100], 最后一维为点的索引, 4为4个边的索引, 所以将dis_inrepeat到[1, 4, 100]:
+    dis_in = dis_in.repeat(4, 1).unsqueeze(0)
+    """
+    density_mask = dis_in.squeeze(0)
+    dis_in = dis_in.repeat(4, 1).unsqueeze(0)
 
     dis_in_mul = dis_in_mul[dis_in]
     dis_inter2cen = dis_inter2cen[dis_in]
     dis_all = dis_all[dis_in]
-    density = density[dis_in]
+    density = density[density_mask]
 
     z_buffer_ind = torch.argmin(dis_inter2cen[dis_in_mul].view(-1, 2), dim=1)
     z_buffer_ind_gather = torch.stack([~z_buffer_ind.byte(), z_buffer_ind.byte()],
@@ -115,7 +131,8 @@ def calc_dis_ray_tracing(wl, Ry, points, density, bev_box_center):
     # z_buffer_ind_gather = torch.stack([~(z_buffer_ind.type(torch.bool)), z_buffer_ind.type(torch.bool)],
     #                                   dim=1)
 
-    dis = (dis_all[dis_in_mul].view(-1, 2))[z_buffer_ind_gather] / density
+    # pdb.set_trace()
+    dis = (dis_all[dis_in_mul].view(-1, 2))[z_buffer_ind_gather] / density.unsqueeze(1)
 
     dis_mean = torch.mean(dis)
     return dis_mean
@@ -524,7 +541,8 @@ class WDM3DLoss(nn.Module):
                 )
 
         total_loss = 0
+        # pdb.set_trace()
         for l, w in zip([loss_3d, depth_loss, bbox2d_loss], self.loss_weights):
             total_loss = total_loss + l * w
 
-        return total_loss
+        return total_loss, loss_3d, depth_loss, bbox2d_loss

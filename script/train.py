@@ -8,7 +8,7 @@
 
 import torch
 from model.model import WDM3D
-from utils.wdm3d_utils import load_config, create_module, create_dataloader, Timer
+from utils.wdm3d_utils import load_config, create_module, create_dataloader, Timer, create_optimizer
 from dataset.kitti.kitti import KITTIDataset
 from loss import WDM3DLoss
 from torchvision.transforms import Compose, ToTensor
@@ -52,18 +52,19 @@ def main(args):
     dataloader = create_dataloader(dataset=dataset, batch_size=batch_size)
 
     model = WDM3D(config["model"]).to(device)
+    optimizer = create_optimizer(model, config["optimizer"])
 
     for epoch_idx in range(epoch):
         for img, targets, original_idx in dataloader:
             img = img.to(device)
             targets = [t.to(device) for t in targets]
             # pdb.set_trace()
-            with Timer("forward"):
+            with Timer("forward", work=False):
                 bbox_2d, depth_pred, pseudo_LiDAR_points, pred = model(
                     img, targets)
 
-            with Timer("loss process"):
-                batch_loss = loss_preocessor(
+            with Timer("loss process", work=False):
+                total_loss, loss_3d, depth_loss, bbox2d_loss = loss_preocessor(
                     roi_points=pseudo_LiDAR_points,
                     bbox2d_pred=bbox_2d,
                     depth_pred=depth_pred,
@@ -72,7 +73,13 @@ def main(args):
                     depth_gt=[t.get_field("depth_map") for t in targets],
                     calibs=[t.get_field("calib") for t in targets]
                 )
-            logger.info(f"batch loss: {batch_loss.item()}")
+            logger.info(
+                f"batch loss: {total_loss.item()}, 3d loss: {loss_3d}, depth_loss: {depth_loss}, bbox2d_loss: {bbox2d_loss}")
+
+            with Timer("backward", work=False):
+                total_loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
             # break
         break
 

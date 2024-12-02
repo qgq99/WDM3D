@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=0
 
 cur_time=$(date "+%Y-%m-%d_%H_%M_%S")
 config_file=/home/qinguoqing/project/WDM3D/config/exp/exp.yaml
