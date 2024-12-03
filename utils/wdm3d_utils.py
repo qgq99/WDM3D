@@ -12,6 +12,7 @@ import numpy as np
 import random
 from torch.optim import Adam, AdamW, SGD
 import time
+from loguru import logger
 
 
 FUSION_METHOD = {
@@ -50,6 +51,24 @@ def load_config(config_path: str = "/home/qinguoqing/project/WDM3D/config/exp/ex
         config[k] = load_config(config[k], sub_cfg_keys=[])[k]
 
     return config
+
+
+def dump_config(config: dict, save_path=None, is_append=False):
+    """
+    将配置对象输出为文件
+    :param config: 配置对象
+    :param save_path: 保存路径
+    :param is_append: 输出文件时是否使用append模式
+    """
+    if save_path is None:
+        logger.warning(
+            f"No config save path specified, printing config instead of dumping it.")
+        print(yaml.safe_dump(config, explicit_end=True, allow_unicode=True, sort_keys=False))
+        return
+
+    with open(save_path, 'a' if is_append else 'w', encoding="utf-8") as f:
+        yaml.safe_dump(config, f, explicit_end=True,
+                       allow_unicode=True, sort_keys=False)
 
 
 def kitti_collate(batch):
@@ -111,6 +130,10 @@ def format_sec(s):
     hour = f"{hour}小时" if hour > 0 else ""
     minute = f"{minute}分钟" if minute > 0 else ""
     return day + hour + minute + f"{seconds:.4f}秒"
+
+
+def get_current_time(format="%Y-%m-%d %H:%M:%S"):
+    return time.strftime(format, time.localtime(time.time()))
 
 
 class Timer:

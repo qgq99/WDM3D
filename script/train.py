@@ -8,7 +8,7 @@
 
 import torch
 from model.model import WDM3D
-from utils.wdm3d_utils import load_config, create_module, create_dataloader, Timer, create_optimizer
+from utils.wdm3d_utils import load_config, create_module, create_dataloader, Timer, create_optimizer, get_current_time, dump_config
 from dataset.kitti.kitti import KITTIDataset
 from loss import WDM3DLoss
 from torchvision.transforms import Compose, ToTensor
@@ -18,6 +18,8 @@ import numpy as np
 import argparse
 from loguru import logger
 import time
+import os
+from pathlib import Path
 
 
 G = globals()
@@ -29,11 +31,17 @@ trnasform = Compose([
 
 def get_arg_parser():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--title", default="", help="experiment name")
+    parser.add_argument("--desc", default="",
+                        help="description of this experiment")
     parser.add_argument(
         "--config", default="/home/qinguoqing/project/WDM3D/config/exp/exp.yaml")
     parser.add_argument("--epoch", default=10, type=int)
     parser.add_argument("--batch_size", default=4, type=int)
+    parser.add_argument("--CUDA_VISIBLE_DEVICES", default="0")
     parser.add_argument("--device", default="cuda:0")
+
+    parser.add_argument("--output_dir", default="")
 
     return parser
 
@@ -43,9 +51,30 @@ def main(args):
     device = torch.device(args.device)
     config = load_config(args.config)
     epoch = args.epoch
+    output_dir = Path(args.output_dir)
 
-    # pdb.set_trace()
+    exp_meta_data = {
+        "title": args.title,
+        "desc": args.desc,
+        "time": get_current_time(),
+        "batch_size": batch_size,
+        "epoch": epoch,
+        "CUDA_VISIBLE_DEVICES": args.CUDA_VISIBLE_DEVICES,
+        "device": args.device,
+    }
 
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+    """
+    因为希望实验元数据显示在所保存的配置文件的最上方, 
+    若先合并配置对象再dump, 会导致元数据显示在最下方, 所以分两次dump
+    """
+    dump_config(exp_meta_data, output_dir / "config.yaml")
+    dump_config(config, output_dir / "config.yaml", is_append=True)
+
+    logger.info(
+        f"Config of this experiment has been saved to {output_dir / 'config.yaml'}.")
+    pdb.set_trace()
     loss_preocessor = create_module(G, config, "loss")
 
     dataset = create_module(G, config, "dataset")
