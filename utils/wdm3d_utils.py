@@ -144,12 +144,13 @@ class Timer:
             result = model(imgs)
     """
 
-    def __init__(self, consumer="", work=True):
+    def __init__(self, consumer="", work=True, printer=print):
         """
         work: 是否工作
         """
         self.consumer = consumer
         self.work = work
+        self.printer = printer
 
     def __enter__(self):
         if self.work:
@@ -157,6 +158,6 @@ class Timer:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.work:
-            print(
+            self.printer(
                 f"Time consumption of [{self.consumer}]: {format_sec(time.time() - self.start)}")
         del self

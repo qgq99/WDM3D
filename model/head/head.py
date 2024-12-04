@@ -31,7 +31,7 @@ class WDM3DHead(nn.Module):
         last_feature = x[-1]
         head_output = []
         
-        pdb.set_trace()
+        # pdb.set_trace()
         head_output.append(self.horizon_head(last_feature))
         head_output.append(self.predictor_head(last_feature, bbox))
         return head_output

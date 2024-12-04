@@ -1,21 +1,31 @@
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=1
 
 
-title=GENeck_validdation
-desc=进程已结束，退出代码为
+title=loss_trend_observation
+desc=首次完整训练过程，初期观察到loss不降，跑一次完整训练观察loss趋势
 
 
 cur_time=$(date "+%Y-%m-%d_%H_%M_%S")
 config_file=/home/qinguoqing/project/WDM3D/config/exp/exp.yaml
 batch_size=4
-epoch=1
+epoch=70
 output_dir=/home/qinguoqing/project/WDM3D/output/train/${title}_${cur_time}
 
-python script/train.py \
+nohup python script/train.py \
     --title ${title} \
     --desc "${desc}" \
     --config ${config_file} \
     --batch_size ${batch_size} \
     --epoch ${epoch} \
     --CUDA_VISIBLE_DEVICES ${CUDA_VISIBLE_DEVICES} \
-    --output_dir ${output_dir}
+    --output_dir ${output_dir} > console.txt &
+
+# 调试
+# python script/train.py \
+#     --title ${title} \
+#     --desc "${desc}" \
+#     --config ${config_file} \
+#     --batch_size ${batch_size} \
+#     --epoch ${epoch} \
+#     --CUDA_VISIBLE_DEVICES ${CUDA_VISIBLE_DEVICES} \
+#     --output_dir ${output_dir}

@@ -98,9 +98,9 @@ class WDM3D(nn.Module):
             features, h, w, torch.stack([t.get_field("slope_map") for t in targets]))
         
         # pdb.set_trace()
-        # detector_2d_output = self.detector_2d(x)
-        # bbox_2d = non_max_suppression(detector_2d_output[0])
-        bbox_2d = [torch.stack([random_bbox2d(device=device) for _ in range(6)]) for __ in range(b)]
+        detector_2d_output = self.detector_2d(x)
+        bbox_2d = non_max_suppression(detector_2d_output[0])
+        # bbox_2d = [torch.stack([random_bbox2d(device=device) for _ in range(6)]) for __ in range(b)]
 
         depth_pred, depth_feat = self.depther(neck_output_feats, h, w)
 

@@ -132,7 +132,8 @@ def calc_dis_ray_tracing(wl, Ry, points, density, bev_box_center):
     #                                   dim=1)
 
     # pdb.set_trace()
-    dis = (dis_all[dis_in_mul].view(-1, 2))[z_buffer_ind_gather] / density.unsqueeze(1)
+    dis = (dis_all[dis_in_mul].view(-1, 2)
+           )[z_buffer_ind_gather] / density.unsqueeze(1)
 
     dis_mean = torch.mean(dis)
     return dis_mean
@@ -543,6 +544,8 @@ class WDM3DLoss(nn.Module):
         total_loss = 0
         # pdb.set_trace()
         for l, w in zip([loss_3d, depth_loss, bbox2d_loss], self.loss_weights):
+            # TODO: 考察depth loss出现极大值的原因
+            l = l if l < 1e15 else (l * 1e-15)  # depth loss偶尔出现极大值, 3e21等, 为避免极大值导致无法看出其他正常值的趋势, 暂屏蔽该情况
             total_loss = total_loss + l * w
 
-        return total_loss, loss_3d, depth_loss, bbox2d_loss
+        return total_loss, loss_3d, depth_loss if depth_loss < 1e15 else (depth_loss - 1e-15), bbox2d_loss
