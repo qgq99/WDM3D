@@ -495,9 +495,10 @@ class WDM3DLoss(nn.Module):
         device = depth_pred.device
         batch_size = len(bbox2d_pred)
 
-        depth_loss = 0
-        bbox2d_loss = 0
-        loss_3d = 0
+        # depth_loss = torch.tensor([0], device=device)
+        depth_loss = torch.zeros(1, device=device)
+        bbox2d_loss = torch.zeros(1, device=device)
+        loss_3d = torch.zeros(1, device=device)
         # pdb.set_trace()
         for i in range(batch_size):
             """
@@ -545,7 +546,8 @@ class WDM3DLoss(nn.Module):
         # pdb.set_trace()
         for l, w in zip([loss_3d, depth_loss, bbox2d_loss], self.loss_weights):
             # TODO: 考察depth loss出现极大值的原因
-            l = l if l < 1e15 else (l * 1e-15)  # depth loss偶尔出现极大值, 3e21等, 为避免极大值导致无法看出其他正常值的趋势, 暂屏蔽该情况
+            # depth loss偶尔出现极大值, 3e21等, 为避免极大值导致无法看出其他正常值的趋势, 暂屏蔽该情况
+            l = l if l < 1e15 else (l * 1e-15)
             total_loss = total_loss + l * w
 
         return total_loss, loss_3d, depth_loss if depth_loss < 1e15 else (depth_loss - 1e-15), bbox2d_loss

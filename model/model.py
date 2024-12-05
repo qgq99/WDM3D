@@ -133,9 +133,11 @@ class WDM3D(nn.Module):
         bboxes: [n, k], k >= 4, [x1, y1, x2, y2, ...]
         """
         pseudo_LiDAR_points = []
-        tmp_depths = depths.clone().detach().cpu()
+        # tmp_depths = depths.clone().detach().cpu()
+        tmp_depths = depths.detach().cpu()
         for d, calib, bbox in zip(tmp_depths, calibs, bboxes):
-            bbox = bbox.clone().detach().type(torch.int32).cpu()
+            # bbox = bbox.clone().detach().type(torch.int32).cpu()
+            bbox = bbox.detach().type(torch.int32).cpu()
             pseudo_LiDAR_points.append(select_depth_and_project_to_points(d, calib, bbox[:, :4]))
 
         return pseudo_LiDAR_points
@@ -145,7 +147,8 @@ class WDM3D(nn.Module):
         计算伪点云, 每个像素点都有一个深度, 因此每个像素对应一个点云中的点, shape[384, 1280]的深度图计算得到[491250, 3]的点云数据
         """
         pseudo_LiDAR_points = []
-        tmp_depths = depths.clone().detach().cpu()
+        # tmp_depths = depths.clone().detach().cpu()
+        tmp_depths = depths.cpu()
         for d, calib in zip(tmp_depths, calibs):
             pdb.set_trace()
             pseudo_LiDAR_points.append(

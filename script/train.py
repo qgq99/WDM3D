@@ -47,32 +47,34 @@ def get_arg_parser():
     return parser
 
 
-def plot_loss_curve(loss_datas, titles=[], xlabels=[], ylabels=[], show=False, save=True):
+def plot_loss_curve(loss_datas, titles=[], xlabels=[], ylabels=[], output_dir="", show=False, save=True):
     assert len(loss_datas) == len(titles) == len(xlabels) == len(ylabels)
 
     plot_cnt = len(loss_datas)
-    row, col = (plot_cnt + 1) // row
+    row = 2
+    col = (plot_cnt + 1) // row
 
     fig, axs = plt.subplots(row, col)
 
     for i in range(plot_cnt):
-        axs[i // row, i % col].plot(loss_datas[i],
-                                    list(range(len(loss_datas[i]))))
-        axs[i // row, i % col].set_title(titles[i])
-        axs[i // row, i % col].set_xlabel(xlabels[i])
-        axs[i // row, i % col].set_ylabel(ylabels[i])
+        axs[i // col, i % col].plot(list(range(len(loss_datas[i]))), loss_datas[i])
+        axs[i // col, i % col].set_title(titles[i])
+        axs[i // col, i % col].set_xlabel(xlabels[i])
+        axs[i // col, i % col].set_ylabel(ylabels[i])
 
     # 隐藏最后一个子图（空白占位，避免最后一个图显示异常）
     if row * col > plot_cnt:
         axs[row-1, col - 1].axis('off')
     plt.tight_layout()
 
+    if save:
+        plt.savefig(output_dir / "loss_curve.png")
     if show:
         plt.show()
-    if save:
-        plt.savefig("loss_curve.png")
 
 
+
+@logger.catch
 def main(args):
     batch_size = args.batch_size
     device = torch.device(args.device)
@@ -117,11 +119,14 @@ def main(args):
     """
     sum_epoch_losses, avg_epoch_losses, avg_epoch_3dlosses, avg_bbox2d_losses, avg_depth_losses = [], [], [], [], []
 
+    model.train()
     with Timer("the hole training process", printer=logger.success):
         for epoch_idx in range(epoch):
-            with Timer(f"opech {epoch_idx}", printer=logger.success):
+            with Timer(f"epoch {epoch_idx+1}", printer=logger.success):
                 cur_epoch_total_loss, cur_epoch_3dloss, cur_epoch_bbox2d_loss, cur_epoch_depth_loss = 0, 0, 0, 0
-                for img, targets, original_idx in dataloader:
+                for batch_idx, (img, targets, original_idx) in enumerate(dataloader):
+                    # pdb.set_trace()
+                    optimizer.zero_grad()
                     img = img.to(device)
                     targets = [t.to(device) for t in targets]
                     # pdb.set_trace()
@@ -138,16 +143,15 @@ def main(args):
                         calibs=[t.get_field("calib") for t in targets]
                     )
                     logger.info(
-                        f"batch loss: {total_loss.item()}, 3d loss: {loss_3d}, depth_loss: {depth_loss}, bbox2d_loss: {bbox2d_loss}")
+                        f"Epoch [{epoch_idx+1}/{epoch}], batch [{batch_idx+1}/{batch_cnt}], batch loss: [{total_loss.item()}], 3d loss: [{loss_3d.item()}], depth_loss: [{depth_loss.item()}], bbox2d_loss: [{bbox2d_loss.item()}], image index: {original_idx}")
 
                     cur_epoch_total_loss += total_loss.item()
-                    cur_epoch_3dloss += loss_3d
-                    cur_epoch_bbox2d_loss += bbox2d_loss
-                    cur_epoch_depth_loss += depth_loss
+                    cur_epoch_3dloss += loss_3d.item()
+                    cur_epoch_bbox2d_loss += bbox2d_loss.item()
+                    cur_epoch_depth_loss += depth_loss.item()
 
                     total_loss.backward()
                     optimizer.step()
-                    optimizer.zero_grad()
                     # break
 
                 sum_epoch_losses.append(cur_epoch_total_loss)
@@ -157,8 +161,8 @@ def main(args):
                 avg_depth_losses.append(cur_epoch_depth_loss / batch_cnt)
 
     plot_loss_curve([sum_epoch_losses, avg_epoch_losses, avg_epoch_3dlosses, avg_bbox2d_losses, avg_depth_losses], titles=[
-                    "sum_epoch_losses", "avg_epoch_losses", "avg_epoch_3dlosses", "avg_bbox2d_losses", "avg_depth_losses"], 
-                    xlabels=["epoch"] * 5, ylabels=["loss"] * 5)
+                    "sum_epoch_losses", "avg_epoch_losses", "avg_epoch_3dlosses", "avg_bbox2d_losses", "avg_depth_losses"],
+                    xlabels=["epoch"] * 5, ylabels=["loss"] * 5, output_dir=output_dir) 
 
 
 if __name__ == '__main__':
