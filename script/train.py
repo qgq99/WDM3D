@@ -74,7 +74,6 @@ def plot_loss_curve(loss_datas, titles=[], xlabels=[], ylabels=[], output_dir=""
 
 
 
-@logger.catch
 def main(args):
     batch_size = args.batch_size
     device = torch.device(args.device)
@@ -110,7 +109,7 @@ def main(args):
     dataloader = create_dataloader(dataset=dataset, batch_size=batch_size)
 
     batch_cnt = len(dataloader)  # 共有多少个batch
-
+    # pdb.set_trace()
     model = WDM3D(config["model"]).to(device)
     optimizer = create_optimizer(model, config["optimizer"])
 

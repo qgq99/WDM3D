@@ -168,6 +168,8 @@ class KITTIDataset(Dataset):
             self.max_depth = 65
             self.max_truncation = 0.7
             self.max_occlusion = 2
+        
+        self.depth_mode = config["depth_mode"]
 
         """
 		self.mxmn_vals_map存储每个图像的深度值的最值, 键为图像名称, 值为[mx, mn]
@@ -490,22 +492,21 @@ class KITTIDataset(Dataset):
         加载将每个图像的深度图的实际深度最值, 该最值将用于把深度图的像素值还原为实际深度值
         """
         depth_mxmn_vals_map = {}
-        path = self.root / self.split / "depth" / "max_min_val.txt"
+        path = self.root / self.split / "depth" / "max_min_val_map" / f"max_min_val_{self.depth_mode}.txt"
         with open(path) as f:
             for line in f:
                 [img_name, mx, mn] = line.strip().split()
                 depth_mxmn_vals_map[img_name] = [float(mx), float(mn)]
         return depth_mxmn_vals_map
 
-    def load_depth_map(self, img_name, use_interpolated=False):
+    def load_depth_map(self, img_name):
         """
         加载由project/WDM3D/dataset/script/generate_depth_map.py生成的深度图
         img_name: 要加载的图像名称
-        use_interpolated: 是否加载插值深度图
         """
 
         path = self.root / self.split / "depth" / \
-            f"depth_maps{'_interp' if use_interpolated else ''}" / \
+            f"depth_maps_{self.depth_mode}" / \
             f"{img_name}.png"
         [mx, mn] = self.depth_mxmn_vals_map[str(img_name)]
 
@@ -518,7 +519,8 @@ class KITTIDataset(Dataset):
             ph, pw = self.input_height - depth.shape[0], self.input_width - depth.shape[1]
             depth = np.pad(depth, ((ph // 2, ph // 2 + int(ph % 2 == 1)),(pw // 2, pw // 2 + int(pw % 2 == 1))), "constant", constant_values=0)
 
-        depth[depth == 0] = np.inf  # 值为0表示缺失深度值, 暂用无穷大表示
+        if self.depth_mode != "pred":   # mode为pred时, 不存在缺失深度值的像素
+            depth[depth == 0] = np.inf  # 值为0表示缺失深度值, 暂用无穷大表示
 
         return depth
 
@@ -902,7 +904,7 @@ class KITTIDataset(Dataset):
         # show_heatmap(img, horizon_heat_map, classes=['horizon'])
 
         depth_map = self.load_depth_map(
-            Path(self.image_files[idx]).with_suffix(""), False)
+            Path(self.image_files[idx]).with_suffix(""))
         # calculate pre-computed ground embeding
         pe = self.calc_pe(self.input_height, self.input_width, calib)
 

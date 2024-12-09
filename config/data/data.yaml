@@ -3,6 +3,9 @@ dataset:
     params:
         root: "/home/qinguoqing/dataset/kitti"
         split: "train"
+
+        depth_mode: "pred"  # 深度图标签有三种["gt", "interp", "pred"]
+
         detect_classes: ["Car"]
         use_right_image: False
         max_objects: 40
