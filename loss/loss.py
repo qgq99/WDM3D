@@ -13,6 +13,7 @@ import torch.nn.functional as F
 import numpy as np
 from utils.wdm3d_utils import create_module
 from torch.nn import MSELoss, SmoothL1Loss
+from utils.loss_tal_dual import ComputeLoss
 import pdb
 
 
@@ -473,7 +474,7 @@ G = globals()
 
 class WDM3DLoss(nn.Module):
 
-    def __init__(self, sample_roi_points=100, dim_prior=[[0.8, 1.8, 0.8], [0.6, 1.8, 1.8], [1.6, 1.8, 4.]], loss_weights=[1, 0.9, 0.9], inf_pixel_loss=0.001, *args, **config) -> None:
+    def __init__(self, model=None, sample_roi_points=100, dim_prior=[[0.8, 1.8, 0.8], [0.6, 1.8, 1.8], [1.6, 1.8, 4.]], loss_weights=[1, 0.9, 0.9], inf_pixel_loss=0.001, *args, **config) -> None:
         """
         sample_roi_points: 每个实例采样多少个点云中的点
         dim_prior: 
@@ -486,7 +487,7 @@ class WDM3DLoss(nn.Module):
         self.loss_weights = loss_weights
         self.inf_pixel_loss = inf_pixel_loss
         self.depth_loss = create_module(G, config, "depth_loss")
-        self.bbox2d_loss = create_module(G, config, "bbox2d_loss")
+        self.bbox2d_loss = create_module(G, config, "bbox2d_loss", model=model.detector_2d)
 
     def forward(self, roi_points, bbox2d_pred, depth_pred, pred3d, bbox2d_gt, depth_gt, calibs):
         """

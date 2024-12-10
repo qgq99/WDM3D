@@ -15,7 +15,7 @@ loss:
             module: "MSELoss"
             params: {}
         bbox2d_loss:
-            module: "SmoothL1Loss"
+            module: "ComputeLoss"
             params: {}
 
 optimizer:

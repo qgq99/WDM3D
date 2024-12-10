@@ -28,12 +28,13 @@ OPTIMIZER = {
 }
 
 
-def create_module(g: dict, cfg: dict, module_name: str):
+def create_module(g: dict, cfg: dict, module_name: str, **kwargs):
     """
     g: 应为globals()的返回值
     cfg: 配置对象
     """
-
+    cfg[module_name]["params"].update(
+        kwargs)   # for manually update the config when call create_module
     return g[cfg[module_name]["module"]](**cfg[module_name]["params"])
 
 
@@ -63,7 +64,8 @@ def dump_config(config: dict, save_path=None, is_append=False):
     if save_path is None:
         logger.warning(
             f"No config save path specified, printing config instead of dumping it.")
-        print(yaml.safe_dump(config, explicit_end=True, allow_unicode=True, sort_keys=False))
+        print(yaml.safe_dump(config, explicit_end=True,
+              allow_unicode=True, sort_keys=False))
         return
 
     with open(save_path, 'a' if is_append else 'w', encoding="utf-8") as f:

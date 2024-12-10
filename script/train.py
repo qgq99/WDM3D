@@ -103,7 +103,6 @@ def main(args):
     logger.info(
         f"Config of this experiment has been saved to {output_dir / 'config.yaml'}.")
     # pdb.set_trace()
-    loss_preocessor = create_module(G, config, "loss")
 
     dataset = create_module(G, config, "dataset")
     dataloader = create_dataloader(dataset=dataset, batch_size=batch_size)
@@ -111,6 +110,10 @@ def main(args):
     batch_cnt = len(dataloader)  # 共有多少个batch
     # pdb.set_trace()
     model = WDM3D(config["model"]).to(device)
+    
+    loss_preocessor = create_module(G, config, "loss", model=model)
+
+    pdb.set_trace()
     optimizer = create_optimizer(model, config["optimizer"])
 
     """

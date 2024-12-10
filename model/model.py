@@ -9,7 +9,7 @@
 import yaml
 import torch
 from torch import nn
-from utils.wdm3d_utils import create_module, calc_model_params_count, random_bbox2d
+from utils.wdm3d_utils import create_module, calc_model_params_count, random_bbox2d, load_config
 from utils.general import non_max_suppression
 from dataset.kitti.kitti_utils import Calibration
 from model.backbone import *
@@ -36,7 +36,6 @@ def project_depth_to_points(calib, depth, max_high):
     return cloud[valid]
 
 
-
 def select_depth_and_project_to_points(depth, calib, bboxes):
     """
     将bbox范围内的像素点选出来, 并用选出来的像素点计算为点云, 核心逻辑同project_depth_to_points
@@ -51,12 +50,9 @@ def select_depth_and_project_to_points(depth, calib, bboxes):
             cloud = calib.project_image_to_velo(points)
             # pdb.set_trace()
             single_img_pseudo_roi_point_cloud.append(cloud)
-    
+
     # return single_img_pseudo_point_cloud
     return single_img_pseudo_roi_point_cloud
-
-
-
 
 
 class WDM3D(nn.Module):
@@ -80,8 +76,13 @@ class WDM3D(nn.Module):
         for prop in ["backbone", "neck", "neck_fusion", "depther", "detector_2d", "head"]:
             setattr(self, prop, create_module(G, self.cfg, prop))
 
-        logger.success(f"Successfully create WDM3D model, model parameter count: {calc_model_params_count(self):.2f}MB")
+        if type(self.detector_2d) == DetectionModel:
+            # **if use yolov9 as the 2d detector, attach hyperparameters to it for its loss computation**
+            self.detector_2d.hyp = load_config(
+                "/home/qinguoqing/project/WDM3D/config/yolo/hyp.scratch-high.yaml", sub_cfg_keys=[])
 
+        logger.success(
+            f"Successfully create WDM3D model, model parameter count: {calc_model_params_count(self):.2f}MB")
 
     def forward(self, x: torch.Tensor, targets=None):
 
@@ -96,7 +97,7 @@ class WDM3D(nn.Module):
         # pdb.set_trace()
         neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(
             features, h, w, torch.stack([t.get_field("slope_map") for t in targets]))
-        
+
         # pdb.set_trace()
         detector_2d_output = self.detector_2d(x)
         bbox_2d = non_max_suppression(detector_2d_output[0])
@@ -105,9 +106,9 @@ class WDM3D(nn.Module):
         depth_pred, depth_feat = self.depther(neck_output_feats, h, w)
 
         # pseudo_LiDAR_points = self.calc_pseudo_LiDAR_point(
-        #     depth_pred, [t.get_field("calib") for t in targets])   
+        #     depth_pred, [t.get_field("calib") for t in targets])
         # pdb.set_trace()
-            
+
         pseudo_LiDAR_points = self.calc_selected_pseudo_LiDAR_point(
             depth_pred, bbox_2d, [t.get_field("calib") for t in targets])
 
@@ -125,7 +126,6 @@ class WDM3D(nn.Module):
     def forward_test(self, x):
         pass
 
-
     def calc_selected_pseudo_LiDAR_point(self, depths: torch.Tensor, bboxes: list[np.ndarray], calibs: list[Calibration]):
         """
         将bbox范围内的像素点选出来, 然后只用这些点计算伪点云
@@ -138,7 +138,8 @@ class WDM3D(nn.Module):
         for d, calib, bbox in zip(tmp_depths, calibs, bboxes):
             # bbox = bbox.clone().detach().type(torch.int32).cpu()
             bbox = bbox.detach().type(torch.int32).cpu()
-            pseudo_LiDAR_points.append(select_depth_and_project_to_points(d, calib, bbox[:, :4]))
+            pseudo_LiDAR_points.append(
+                select_depth_and_project_to_points(d, calib, bbox[:, :4]))
 
         return pseudo_LiDAR_points
 

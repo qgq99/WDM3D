@@ -6,15 +6,15 @@
 @Description : Description of this file
 """
 
-from utils.wdm3d_utils import random_bbox2d
+from utils.wdm3d_utils import load_config
 
 
 G = globals()
 
 
 def main():
-    for _ in range(100):
-        print(random_bbox2d())
+    cfg = load_config("/home/qinguoqing/project/WDM3D/config/yolo/hyp.scratch-high.yaml", sub_cfg_keys=[])
+    print(cfg)
 
 
 if __name__ == '__main__':
