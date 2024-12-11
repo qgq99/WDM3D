@@ -94,6 +94,9 @@ class KITTIDataset(Dataset):
             self.planes_files = self.label_files
 
         self.classes = config["detect_classes"]
+
+        # self.class2Idx = {cls: idx for idx, cls in enumerate(self.classes)}
+
         self.num_classes = len(self.classes)
         self.num_samples = len(self.image_files)
 
@@ -704,6 +707,18 @@ class KITTIDataset(Dataset):
         # regression weight
         reg_weight = np.zeros([self.max_objs], dtype=np.float32)
 
+        # print(f"obj cnt of image {idx}: {len(objs)}")
+        
+        obj_cnt = len(objs)
+        bbox2d_gt = np.zeros((obj_cnt, 6))
+        if obj_cnt > 0:
+            bbox2d_gt[:, 0] = idx
+            # bbox2d_gt[:, 1] = [self.class2Idx[i.type] for i in objs]
+            bbox2d_gt[:, 2:] = np.array([o.box2d for o in objs])
+
+
+
+
         for i, obj in enumerate(objs):
             cls = obj.type
             cls_id = TYPE_ID_CONVERSION[cls]
@@ -952,6 +967,8 @@ class KITTIDataset(Dataset):
         target.add_field("gt_bboxes", gt_bboxes)
         target.add_field("occlusions", occlusions)
         target.add_field("truncations", truncations)
+
+        target.add_field("bbox2d_gt", bbox2d_gt)    # this is for yolov9 loss
 
         # set pre-computed ground embeding and slope map
         target.add_field("pe", pe)

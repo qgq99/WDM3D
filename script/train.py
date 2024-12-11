@@ -113,7 +113,7 @@ def main(args):
     
     loss_preocessor = create_module(G, config, "loss", model=model)
 
-    pdb.set_trace()
+    # pdb.set_trace()
     optimizer = create_optimizer(model, config["optimizer"])
 
     """
@@ -132,15 +132,16 @@ def main(args):
                     img = img.to(device)
                     targets = [t.to(device) for t in targets]
                     # pdb.set_trace()
-                    bbox_2d, depth_pred, pseudo_LiDAR_points, pred = model(
+                    bbox_2d, loss2d_feat, depth_pred, pseudo_LiDAR_points, pred = model(
                         img, targets)
 
                     total_loss, loss_3d, depth_loss, bbox2d_loss = loss_preocessor(
                         roi_points=pseudo_LiDAR_points,
                         bbox2d_pred=bbox_2d,
+                        loss2d_feat=loss2d_feat,
                         depth_pred=depth_pred,
                         pred3d=pred[1],
-                        bbox2d_gt=[t.get_field("2d_bboxes") for t in targets],
+                        bbox2d_gt=[t.get_field("bbox2d_gt") for t in targets],
                         depth_gt=[t.get_field("depth_map") for t in targets],
                         calibs=[t.get_field("calib") for t in targets]
                     )

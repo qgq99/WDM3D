@@ -101,6 +101,7 @@ class WDM3D(nn.Module):
         # pdb.set_trace()
         detector_2d_output = self.detector_2d(x)
         bbox_2d = non_max_suppression(detector_2d_output[0])
+        # pdb.set_trace()
         # bbox_2d = [torch.stack([random_bbox2d(device=device) for _ in range(6)]) for __ in range(b)]
 
         depth_pred, depth_feat = self.depther(neck_output_feats, h, w)
@@ -121,7 +122,10 @@ class WDM3D(nn.Module):
         depth_aware_feats = self.neck_fusion(neck_output_feats)
 
         pred = self.head(depth_aware_feats, bbox_2d)
-        return bbox_2d, depth_pred, pseudo_LiDAR_points, pred
+        """
+        detector_2d_output[1] is for yolov9 loss
+        """
+        return bbox_2d, detector_2d_output[1], depth_pred, pseudo_LiDAR_points, pred
 
     def forward_test(self, x):
         pass

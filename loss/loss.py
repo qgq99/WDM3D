@@ -376,7 +376,7 @@ def calc_3d_loss(pred_3D, batch_RoI_points, batch_lidar_y_center,
         count += 1
 
     if count == 0:
-        return None
+        return 0
 
     all_loss = all_loss / count
     return all_loss
@@ -489,17 +489,33 @@ class WDM3DLoss(nn.Module):
         self.depth_loss = create_module(G, config, "depth_loss")
         self.bbox2d_loss = create_module(G, config, "bbox2d_loss", model=model.detector_2d)
 
-    def forward(self, roi_points, bbox2d_pred, depth_pred, pred3d, bbox2d_gt, depth_gt, calibs):
+    def forward(self, roi_points, bbox2d_pred, loss2d_feat, depth_pred, pred3d, bbox2d_gt, depth_gt, calibs):
         """
         TODO: depth_gt总包含值为inf的像素点, 表示该像素点确实深度, 需要特别处理
         """
+        # pdb.set_trace()
         device = depth_pred.device
-        batch_size = len(bbox2d_pred)
+        batch_size = len(roi_points)
 
-        # depth_loss = torch.tensor([0], device=device)
+        
+
+        obj_cnt_each_img = []
+
+        """
+        yolov9 loss中需求的label中image index实际为一个batch中的index
+        """
+        for i, v in enumerate(bbox2d_gt):
+            v[: 0] = i
+            obj_cnt_each_img.append(v.shape[0])
+        bbox2d_gt = torch.cat(bbox2d_gt)
+
+
         depth_loss = torch.zeros(1, device=device)
-        bbox2d_loss = torch.zeros(1, device=device)
+        # bbox2d_loss = torch.zeros(1, device=device)
         loss_3d = torch.zeros(1, device=device)
+        # pdb.set_trace()
+        bbox2d_loss = self.bbox2d_loss(loss2d_feat, bbox2d_gt)[0]
+
         # pdb.set_trace()
         for i in range(batch_size):
             """
@@ -508,18 +524,21 @@ class WDM3DLoss(nn.Module):
             由于深度预测不会出现inf, 因此每个gt为inf的像素给定一个较小的损失值
             TODO: 消融实验验证多种方法
             """
+            # pdb.set_trace()
             depth_inf_mask = depth_gt[i] == torch.inf
             depth_gt[i][depth_inf_mask] = depth_pred[i][depth_inf_mask]
             depth_loss = depth_loss + \
                 self.depth_loss(depth_pred[i], depth_gt[i]) + \
                 torch.sum(depth_inf_mask) * self.inf_pixel_loss
 
-            """
-            处理预测到的目标数量和标签目标数量不同的情况
-            """
-            mn_obj_cnt = min(len(bbox2d_pred[i]), len(bbox2d_gt[i]))
-            bbox2d_loss = bbox2d_loss + self.bbox2d_loss(
-                bbox2d_pred[i][:mn_obj_cnt, :4], bbox2d_gt[i][:mn_obj_cnt])
+            # """
+            # 处理预测到的目标数量和标签目标数量不同的情况
+            # """
+            mn_obj_cnt = min(len(bbox2d_pred[i]), obj_cnt_each_img[i])
+            # bbox2d_loss = bbox2d_loss + self.bbox2d_loss(
+            #     bbox2d_pred[i][:mn_obj_cnt, :4], bbox2d_gt[i][:mn_obj_cnt])
+
+            # bbox2d_loss = bbox2d_loss
 
             if len(bbox2d_pred[i]) != len(roi_points[i]):
                 """
@@ -543,12 +562,12 @@ class WDM3DLoss(nn.Module):
                     P2=torch.tensor(calibs[i].P, device=device)
                 )
 
-        total_loss = 0
+        
+        # depth loss偶尔出现极大值, 3e21等, 为避免极大值导致无法看出其他正常值的趋势, 暂屏蔽该情况
+        # TODO: 考察depth loss出现极大值的原因
+        # depth_loss if depth_loss < 1e15 else (depth_loss * 1e-15)
+        
+    
+        total_loss = loss_3d * self.loss_weights[0] + depth_loss * self.loss_weights[1] + bbox2d_loss * self.loss_weights[2]
         # pdb.set_trace()
-        for l, w in zip([loss_3d, depth_loss, bbox2d_loss], self.loss_weights):
-            # TODO: 考察depth loss出现极大值的原因
-            # depth loss偶尔出现极大值, 3e21等, 为避免极大值导致无法看出其他正常值的趋势, 暂屏蔽该情况
-            l = l if l < 1e15 else (l * 1e-15)
-            total_loss = total_loss + l * w
-
-        return total_loss, loss_3d, depth_loss if depth_loss < 1e15 else (depth_loss - 1e-15), bbox2d_loss
+        return total_loss, loss_3d, depth_loss, bbox2d_loss

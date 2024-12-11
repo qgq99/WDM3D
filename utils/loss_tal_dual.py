@@ -168,6 +168,9 @@ class ComputeLoss:
         return dist2bbox(pred_dist, anchor_points, xywh=False)
 
     def __call__(self, p, targets, img=None, epoch=0):
+        """
+        target: need shape of [n, 6], where n is the count of object, 6 is [img_idx, class, xyxy]
+        """
         loss = torch.zeros(3, device=self.device)  # box, cls, dfl
         feats = p[1][0] if isinstance(p, tuple) else p[0]
         feats2 = p[1][1] if isinstance(p, tuple) else p[1]
@@ -312,6 +315,10 @@ class ComputeLossLH:
 
     def __call__(self, p, targets, img=None, epoch=0):
         loss = torch.zeros(3, device=self.device)  # box, cls, dfl
+        
+        if len(targets) == 0:
+            return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
+
         feats = p[1][0] if isinstance(p, tuple) else p[0]
         feats2 = p[1][1] if isinstance(p, tuple) else p[1]
         
