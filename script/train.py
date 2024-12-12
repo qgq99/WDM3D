@@ -57,7 +57,8 @@ def plot_loss_curve(loss_datas, titles=[], xlabels=[], ylabels=[], output_dir=""
     fig, axs = plt.subplots(row, col)
 
     for i in range(plot_cnt):
-        axs[i // col, i % col].plot(list(range(len(loss_datas[i]))), loss_datas[i])
+        axs[i // col, i %
+            col].plot(list(range(len(loss_datas[i]))), loss_datas[i])
         axs[i // col, i % col].set_title(titles[i])
         axs[i // col, i % col].set_xlabel(xlabels[i])
         axs[i // col, i % col].set_ylabel(ylabels[i])
@@ -71,7 +72,6 @@ def plot_loss_curve(loss_datas, titles=[], xlabels=[], ylabels=[], output_dir=""
         plt.savefig(output_dir / "loss_curve.png")
     if show:
         plt.show()
-
 
 
 def main(args):
@@ -110,7 +110,7 @@ def main(args):
     batch_cnt = len(dataloader)  # 共有多少个batch
     # pdb.set_trace()
     model = WDM3D(config["model"]).to(device)
-    
+
     loss_preocessor = create_module(G, config, "loss", model=model)
 
     # pdb.set_trace()
@@ -128,33 +128,36 @@ def main(args):
                 cur_epoch_total_loss, cur_epoch_3dloss, cur_epoch_bbox2d_loss, cur_epoch_depth_loss = 0, 0, 0, 0
                 for batch_idx, (img, targets, original_idx) in enumerate(dataloader):
                     # pdb.set_trace()
-                    optimizer.zero_grad()
-                    img = img.to(device)
-                    targets = [t.to(device) for t in targets]
-                    # pdb.set_trace()
-                    bbox_2d, loss2d_feat, depth_pred, pseudo_LiDAR_points, pred = model(
-                        img, targets)
+                    with Timer(f"batch [{batch_idx}]", work=False):
+                        optimizer.zero_grad()
+                        img = img.to(device)
+                        targets = [t.to(device) for t in targets]
+                        # pdb.set_trace()
+                        bbox_2d, loss2d_feat, depth_pred, pseudo_LiDAR_points, pred = model(
+                            img, targets)
 
-                    total_loss, loss_3d, depth_loss, bbox2d_loss = loss_preocessor(
-                        roi_points=pseudo_LiDAR_points,
-                        bbox2d_pred=bbox_2d,
-                        loss2d_feat=loss2d_feat,
-                        depth_pred=depth_pred,
-                        pred3d=pred[1],
-                        bbox2d_gt=[t.get_field("bbox2d_gt") for t in targets],
-                        depth_gt=[t.get_field("depth_map") for t in targets],
-                        calibs=[t.get_field("calib") for t in targets]
-                    )
-                    logger.info(
-                        f"Epoch [{epoch_idx+1}/{epoch}], batch [{batch_idx+1}/{batch_cnt}], batch loss: [{total_loss.item()}], 3d loss: [{loss_3d.item()}], depth_loss: [{depth_loss.item()}], bbox2d_loss: [{bbox2d_loss.item()}], image index: {original_idx}")
+                        total_loss, loss_3d, depth_loss, bbox2d_loss = loss_preocessor(
+                            roi_points=pseudo_LiDAR_points,
+                            bbox2d_pred=bbox_2d,
+                            loss2d_feat=loss2d_feat,
+                            depth_pred=depth_pred,
+                            pred3d=pred[1],
+                            bbox2d_gt=[t.get_field("bbox2d_gt")
+                                       for t in targets],
+                            depth_gt=[t.get_field("depth_map")
+                                      for t in targets],
+                            calibs=[t.get_field("calib") for t in targets]
+                        )
+                        logger.info(
+                            f"Epoch [{epoch_idx+1}/{epoch}], batch [{batch_idx+1}/{batch_cnt}], batch loss: [{total_loss.item()}], 3d loss: [{loss_3d.item()}], depth_loss: [{depth_loss.item()}], bbox2d_loss: [{bbox2d_loss.item()}], image index: {original_idx}")
 
-                    cur_epoch_total_loss += total_loss.item()
-                    cur_epoch_3dloss += loss_3d.item()
-                    cur_epoch_bbox2d_loss += bbox2d_loss.item()
-                    cur_epoch_depth_loss += depth_loss.item()
+                        cur_epoch_total_loss += total_loss.item()
+                        cur_epoch_3dloss += loss_3d.item()
+                        cur_epoch_bbox2d_loss += bbox2d_loss.item()
+                        cur_epoch_depth_loss += depth_loss.item()
 
-                    total_loss.backward()
-                    optimizer.step()
+                        total_loss.backward()
+                        optimizer.step()
                     # break
 
                 sum_epoch_losses.append(cur_epoch_total_loss)
@@ -165,7 +168,12 @@ def main(args):
 
     plot_loss_curve([sum_epoch_losses, avg_epoch_losses, avg_epoch_3dlosses, avg_bbox2d_losses, avg_depth_losses], titles=[
                     "sum_epoch_losses", "avg_epoch_losses", "avg_epoch_3dlosses", "avg_bbox2d_losses", "avg_depth_losses"],
-                    xlabels=["epoch"] * 5, ylabels=["loss"] * 5, output_dir=output_dir) 
+                    xlabels=["epoch"] * 5, ylabels=["loss"] * 5, output_dir=output_dir)
+
+    model_save_path = output_dir / "model_sd.pth"
+    torch.save(model.state_dict(), model_save_path)
+    logger.success(
+        f"The final model state dict has been save to {model_save_path}")
 
 
 if __name__ == '__main__':

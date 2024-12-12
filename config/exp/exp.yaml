@@ -12,8 +12,10 @@ loss:
         loss_weights: [1, 0.9, 0.9]     # 依次为loss_3d, depth_loss, bbox2d_loss的权重
         inf_pixel_loss: 0.001
         depth_loss:
-            module: "MSELoss"
-            params: {}
+            module: "SiLogLoss"
+            params: 
+                lambd: 0.5
+                epsilon: !!float 1e-5
         bbox2d_loss:
             module: "ComputeLoss"
             params: {}

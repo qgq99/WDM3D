@@ -1,14 +1,14 @@
 export CUDA_VISIBLE_DEVICES=1
 
 
-title=check_effect_yolov9_loss
-desc="observe loss curve of a hole training process, with using yolov9 loss as the 2d loss processor."
+title=check_effect_DA2_SiLogLoss_loss
+desc="observe loss curve of a hole training process, with using SiLogLoss as the depth loss processor."
 
 
 cur_time=$(date "+%Y-%m-%d_%H_%M_%S")
 config_file=/home/qinguoqing/project/WDM3D/config/exp/exp.yaml
 batch_size=4
-epoch=65
+epoch=60
 output_dir=/home/qinguoqing/project/WDM3D/output/train/${title}_${cur_time}
 
 nohup python script/train.py \
