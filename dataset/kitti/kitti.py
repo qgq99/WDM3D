@@ -95,7 +95,7 @@ class KITTIDataset(Dataset):
 
         self.classes = config["detect_classes"]
 
-        # self.class2Idx = {cls: idx for idx, cls in enumerate(self.classes)}
+        self.class2Idx = {cls: idx for idx, cls in enumerate(self.classes)}
 
         self.num_classes = len(self.classes)
         self.num_samples = len(self.image_files)
@@ -712,10 +712,11 @@ class KITTIDataset(Dataset):
         obj_cnt = len(objs)
         bbox2d_gt = np.zeros((obj_cnt, 6))
         if obj_cnt > 0:
-            bbox2d_gt[:, 0] = idx
-            # bbox2d_gt[:, 1] = [self.class2Idx[i.type] for i in objs]
+            # bbox2d_gt[:, 0] = idx
+            bbox2d_gt[:, 1] = [self.class2Idx[i.type] for i in objs]
             bbox2d_gt[:, 2:] = np.array([o.box2d for o in objs])
 
+        # print(bbox2d_gt)
 
 
 

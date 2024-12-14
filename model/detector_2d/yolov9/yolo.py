@@ -11,6 +11,7 @@ import platform
 import sys
 from copy import deepcopy
 from pathlib import Path
+from loguru import logger
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLO root directory
@@ -647,6 +648,7 @@ class DualDDetect4WDM3D(nn.Module):
                                for di in d2], 2).split((self.reg_max * 4, self.nc), 1)
         dbox2 = dist2bbox(self.dfl2(box2), self.anchors.unsqueeze(
             0), xywh=True, dim=1) * self.strides
+        logger.info(f"predicted box:\n{dbox}")
         y = [torch.cat((dbox, cls.sigmoid()), 1),
              torch.cat((dbox2, cls2.sigmoid()), 1)]
         return y if self.export else (y, [d1, d2])

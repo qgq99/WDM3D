@@ -135,7 +135,7 @@ def main(args):
                         # pdb.set_trace()
                         bbox_2d, loss2d_feat, depth_pred, pseudo_LiDAR_points, pred = model(
                             img, targets)
-
+                        # pdb.set_trace()
                         total_loss, loss_3d, depth_loss, bbox2d_loss = loss_preocessor(
                             roi_points=pseudo_LiDAR_points,
                             bbox2d_pred=bbox_2d,

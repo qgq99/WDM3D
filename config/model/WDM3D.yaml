@@ -2,6 +2,7 @@
 
 
 model:
+    # ckpt: "/home/qinguoqing/project/WDM3D/output/train/check_effect_DA2_SiLogLoss_loss_2024-12-12_15_26_25/model_sd.pth"
     backbone:
         module: "fastvit_t12"
         params: 

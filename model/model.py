@@ -81,8 +81,13 @@ class WDM3D(nn.Module):
             self.detector_2d.hyp = load_config(
                 "/home/qinguoqing/project/WDM3D/config/yolo/hyp.scratch-high.yaml", sub_cfg_keys=[])
 
+        # pdb.set_trace()
+        if "ckpt" in config and os.path.exists(config["ckpt"]):
+            self.load_state_dict(torch.load(config["ckpt"], weights_only=True))
+            logger.success(f"Successfully loaded ckeckpoint: {config['ckpt']}")
+
         logger.success(
-            f"Successfully create WDM3D model, model parameter count: {calc_model_params_count(self):.2f}MB")
+            f"Successfully created WDM3D model, model parameter count: {calc_model_params_count(self):.2f}MB")
 
     def forward(self, x: torch.Tensor, targets=None):
 
@@ -100,7 +105,8 @@ class WDM3D(nn.Module):
 
         # pdb.set_trace()
         detector_2d_output = self.detector_2d(x)
-        bbox_2d = non_max_suppression(detector_2d_output[0])
+        # pdb.set_trace()
+        bbox_2d = non_max_suppression(detector_2d_output[0][0], conf_thres=0.1)
         # pdb.set_trace()
         # bbox_2d = [torch.stack([random_bbox2d(device=device) for _ in range(6)]) for __ in range(b)]
 
