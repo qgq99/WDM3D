@@ -13,7 +13,7 @@ import numpy as np
 # from utils.wdm3d_utils import create_module
 # from torch.nn import MSELoss, SmoothL1Loss
 # from utils.loss_tal_dual import ComputeLoss
-# import pdb
+import pdb
 
 
 def calc_dis_ray_tracing(wl, Ry, points, density, bev_box_center):
@@ -313,9 +313,10 @@ def calc_3d_loss(pred_3D, batch_RoI_points, batch_lidar_y_center,
         bbox2d[:, 2] - bbox2d[:, 0], \
         (bbox2d[:, 0] + bbox2d[:, 2])/2, \
         (bbox2d[:, 1] + bbox2d[:, 3])/2
-    proj_box_center = ((F.sigmoid(p_locXYZ[:, :2])-0.5) * torch.stack([w, h], dim=1) +
-                       torch.stack([center_x, center_y], dim=1) -
-                       torch.stack([cx, cy], dim=1)) / torch.stack([fx, fy], dim=1)
+    # pdb.set_trace()
+    # print(p_locXYZ.shape, torch.stack([w, h], dim=1).shape, torch.stack([center_x, center_y], dim=1).shape, torch.stack([cx, cy], dim=1).shape, torch.stack([fx, fy], dim=1).shape)
+    proj_box_center = ((F.sigmoid(p_locXYZ[:, :2])-0.5) * torch.stack([w, h], dim=1) + torch.stack(
+        [center_x, center_y], dim=1) - torch.stack([cx, cy], dim=1)) / torch.stack([fx, fy], dim=1)
     box_center = torch.cat([proj_box_center, torch.ones(
         (proj_box_center.shape[0], 1)).cuda()], dim=1)
     location_3d = p_locXYZ[:, 2:3] * box_center

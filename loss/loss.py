@@ -97,13 +97,20 @@ class WDM3DLoss(nn.Module):
                 此时跳过该次计算并给定一个常数损失值
                 """
                 # pdb.set_trace()
+                print("skip 3d loss")
                 loss_3d = loss_3d + 0   # 应将0替换某一正值, 且配置为参数
+            elif mn_obj_cnt == 0:
+                """
+                gt无目标或检测结果无目标, 无从计算3d loss
+                """
+                continue
             else:
+                # pdb.set_trace()
                 data = generate_data_for_loss(
-                    roi_points[i], bbox2d_pred[i], sample_roi_points=self.sample_roi_points, dim_prior=self.dim_prior)
+                    roi_points[i], bbox2d_pred[i][:mn_obj_cnt], sample_roi_points=self.sample_roi_points, dim_prior=self.dim_prior)
                 # pdb.set_trace()
                 loss_3d = loss_3d + calc_3d_loss(
-                    pred_3D=(pred3d[0][i], pred3d[1][i], pred3d[2][i]),
+                    pred_3D=(pred3d[0][i][:mn_obj_cnt], pred3d[1][i][:mn_obj_cnt], pred3d[2][i][:mn_obj_cnt]),
                     batch_RoI_points=data["batch_RoI_points"],
                     bbox2d=bbox2d_pred[i][:mn_obj_cnt, :4],
                     batch_lidar_y_center=data["batch_lidar_y_center"],

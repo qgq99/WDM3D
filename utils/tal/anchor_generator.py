@@ -1,6 +1,7 @@
 import torch
 
 from utils.general import check_version
+import pdb
 
 TORCH_1_10 = check_version(torch.__version__, '1.10.0')
 
@@ -22,6 +23,7 @@ def make_anchors(feats, strides, grid_cell_offset=0.5):
 
 def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
     """Transform distance(ltrb) to box(xywh or xyxy)."""
+    # pdb.set_trace()
     lt, rb = torch.split(distance, 2, dim)
     x1y1 = anchor_points - lt
     x2y2 = anchor_points + rb

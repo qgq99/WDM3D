@@ -606,7 +606,12 @@ class DualDDetect4WDM3D(nn.Module):
         self.reg_max = 16
         self.no = nc + self.reg_max * 4  # number of outputs per anchor
         self.inplace = inplace  # use inplace ops (e.g. slice assignment)
-        self.stride = torch.zeros(self.nl)  # strides computed during build
+        # self.stride = torch.zeros(self.nl)  # strides computed during build
+
+        """
+        for predict bbox
+        """
+        self.stride = torch.tensor([8., 16., 32.])
 
         c2, c3 = make_divisible(max((ch[0] // 4, self.reg_max * 4, 16)), 4), max(
             (ch[0], min((self.nc * 2, 128))))  # channels
@@ -642,13 +647,22 @@ class DualDDetect4WDM3D(nn.Module):
 
         box, cls = torch.cat([di.view(shape[0], self.no, -1)
                              for di in d1], 2).split((self.reg_max * 4, self.nc), 1)
+
+        """
+        由于在yolov9训练模式下self.strides = self.stride = torch.zeros(self.nl), 导致了dbox鱼dbox2总是为0,
+        此即devlog中12.14问题的原因。
+
+        debugyolov9推理代码发现其是手动给self.strides赋值了常量: torch.tensor([8., 16., 32.])
+        """
+
         dbox = dist2bbox(self.dfl(box), self.anchors.unsqueeze(
             0), xywh=True, dim=1) * self.strides
+        # pdb.set_trace()
         box2, cls2 = torch.cat([di.view(shape[0], self.no, -1)
                                for di in d2], 2).split((self.reg_max * 4, self.nc), 1)
         dbox2 = dist2bbox(self.dfl2(box2), self.anchors.unsqueeze(
             0), xywh=True, dim=1) * self.strides
-        logger.info(f"predicted box:\n{dbox}")
+        # logger.info(f"predicted box:\n{dbox}")
         y = [torch.cat((dbox, cls.sigmoid()), 1),
              torch.cat((dbox2, cls2.sigmoid()), 1)]
         return y if self.export else (y, [d1, d2])

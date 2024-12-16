@@ -44,15 +44,37 @@ def select_depth_and_project_to_points(depth, calib, bboxes):
     single_img_pseudo_roi_point_cloud = []
     for [x1, y1, x2, y2] in bboxes:
         c, r = np.meshgrid(np.arange(x1, x2), np.arange(y1, y2))
-        points = np.stack([c, r, depth[x1: x2, y1: y2].T]).reshape((-1, 3))
+        # pdb.set_trace()
+        points = np.stack([c, r, depth[y1: y2, x1: x2]]).reshape((-1, 3))
         # pdb.set_trace()
         if 0 not in points.shape:
             cloud = calib.project_image_to_velo(points)
             # pdb.set_trace()
             single_img_pseudo_roi_point_cloud.append(cloud)
-
+        else:
+            pdb.set_trace()
     # return single_img_pseudo_point_cloud
     return single_img_pseudo_roi_point_cloud
+
+
+def clamp_bboxes(bboxes: list[torch.Tensor], h: int, w: int):
+    """
+    将bbox坐标值clamp到图像范围内
+    bboxes: 
+    """
+    clamped_bboxes = []
+
+    for bbox in bboxes:
+        # 使用torch.clamp限制边界框坐标
+        clamped_bbox = bbox.clone()  # 创建一个副本以避免修改原始tensor
+        clamped_bbox[:, 0] = torch.clamp(bbox[:, 0], min=0, max=w-1)  # x1
+        clamped_bbox[:, 1] = torch.clamp(bbox[:, 1], min=0, max=h-1)  # y1
+        clamped_bbox[:, 2] = torch.clamp(bbox[:, 2], min=0, max=w-1)  # x2
+        clamped_bbox[:, 3] = torch.clamp(bbox[:, 3], min=0, max=h-1)  # y2
+
+        clamped_bboxes.append(clamped_bbox)
+
+    return clamped_bboxes
 
 
 class WDM3D(nn.Module):
@@ -117,7 +139,7 @@ class WDM3D(nn.Module):
         # pdb.set_trace()
 
         pseudo_LiDAR_points = self.calc_selected_pseudo_LiDAR_point(
-            depth_pred, bbox_2d, [t.get_field("calib") for t in targets])
+            depth_pred, bbox_2d, [t.get_field("calib") for t in targets], img_size=(h, w))
 
         """
         因为depth_feat与neck_output_feats[0]的尺寸相同, 先做初步融合
@@ -126,6 +148,7 @@ class WDM3D(nn.Module):
         neck_output_feats[0] = neck_output_feats[0] + depth_feat
 
         depth_aware_feats = self.neck_fusion(neck_output_feats)
+
 
         pred = self.head(depth_aware_feats, bbox_2d)
         """
@@ -136,18 +159,24 @@ class WDM3D(nn.Module):
     def forward_test(self, x):
         pass
 
-    def calc_selected_pseudo_LiDAR_point(self, depths: torch.Tensor, bboxes: list[np.ndarray], calibs: list[Calibration]):
+    def calc_selected_pseudo_LiDAR_point(self, depths: torch.Tensor, bboxes: list[np.ndarray], calibs: list[Calibration], img_size=(384, 1280)):
         """
         将bbox范围内的像素点选出来, 然后只用这些点计算伪点云
         depths: [bs, h, w]
         bboxes: [n, k], k >= 4, [x1, y1, x2, y2, ...]
+        img_size: 图像尺寸, (h, w), 预测得到的bbox可能坐标超出图像范围, 需要clamp
         """
+        # pdb.set_trace()
+
+        bboxes = clamp_bboxes(bboxes, h=img_size[0], w=img_size[1])
+
         pseudo_LiDAR_points = []
         # tmp_depths = depths.clone().detach().cpu()
         tmp_depths = depths.detach().cpu()
         for d, calib, bbox in zip(tmp_depths, calibs, bboxes):
             # bbox = bbox.clone().detach().type(torch.int32).cpu()
             bbox = bbox.detach().type(torch.int32).cpu()
+            # pdb.set_trace()
             pseudo_LiDAR_points.append(
                 select_depth_and_project_to_points(d, calib, bbox[:, :4]))
 
