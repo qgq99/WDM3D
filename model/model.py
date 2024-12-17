@@ -128,7 +128,7 @@ class WDM3D(nn.Module):
         # pdb.set_trace()
         detector_2d_output = self.detector_2d(x)
         # pdb.set_trace()
-        bbox_2d = non_max_suppression(detector_2d_output[0][0], conf_thres=0.1)
+        bbox_2d = non_max_suppression(detector_2d_output[0][0], conf_thres=0.01, max_det=20)
         # pdb.set_trace()
         # bbox_2d = [torch.stack([random_bbox2d(device=device) for _ in range(6)]) for __ in range(b)]
 

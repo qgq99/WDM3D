@@ -376,6 +376,7 @@ def calc_3d_loss(pred_3D, batch_RoI_points, batch_lidar_y_center,
         count += 1
 
     if count == 0:
+        print("count == 0, 0 3d loss")
         return 0
 
     all_loss = all_loss / count

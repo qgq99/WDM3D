@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import pdb
 
 from utils.metrics import bbox_iou
 
@@ -14,6 +15,7 @@ def select_candidates_in_gts(xy_centers, gt_bboxes, eps=1e-9):
     Return:
         (Tensor): shape(b, n_boxes, h*w)
     """
+    # pdb.set_trace()
     n_anchors = xy_centers.shape[0]
     bs, n_boxes, _ = gt_bboxes.shape
     lt, rb = gt_bboxes.view(-1, 1, 4).chunk(2, 2)  # left-top, right-bottom
@@ -114,7 +116,7 @@ class TaskAlignedAssigner(nn.Module):
                                                 topk_mask=mask_gt.repeat([1, 1, self.topk]).bool())
         # merge all mask to a final mask, (b, max_num_obj, h*w)
         mask_pos = mask_topk * mask_in_gts * mask_gt
-
+        # pdb.set_trace()
         return mask_pos, align_metric, overlaps
 
     def get_box_metrics(self, pd_scores, pd_bboxes, gt_labels, gt_bboxes):
@@ -172,6 +174,7 @@ class TaskAlignedAssigner(nn.Module):
 
         # assigned target scores
         target_labels.clamp(0)
+        # pdb.set_trace()
         target_scores = F.one_hot(target_labels, self.num_classes)  # (b, h*w, 80)
         fg_scores_mask = fg_mask[:, :, None].repeat(1, 1, self.num_classes)  # (b, h*w, 80)
         target_scores = torch.where(fg_scores_mask > 0, target_scores, 0)

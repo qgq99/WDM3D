@@ -1,8 +1,8 @@
 export CUDA_VISIBLE_DEVICES=1
 
 
-title="observe_overall_result"
-desc="所有loss都参与计算, 观察训练结果."
+title="generate_yolov9_weight"
+desc="本次实验前经过debug，发现并解决两个问题: 1. yolov9 loss中对bboxgt强制执行了xywh2xyxy, 而本数据集给出的格式是xyxy；2. loss计算前给bboxgt上img idx， 之前逻辑有误，已调整"
 
 
 cur_time=$(date "+%Y-%m-%d_%H_%M_%S")

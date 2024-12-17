@@ -24,6 +24,8 @@ import torch
 from torch.nn import functional as F
 from torchvision.transforms import Compose, ToTensor
 from PIL import Image, ImageFile
+from utils.general import xyxy2xywh
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 TYPE_ID_CONVERSION = {
@@ -710,11 +712,12 @@ class KITTIDataset(Dataset):
         # print(f"obj cnt of image {idx}: {len(objs)}")
         
         obj_cnt = len(objs)
+        # print(f"obj count of img {original_idx}: {obj_cnt}")
         bbox2d_gt = np.zeros((obj_cnt, 6))
         if obj_cnt > 0:
             # bbox2d_gt[:, 0] = idx
             bbox2d_gt[:, 1] = [self.class2Idx[i.type] for i in objs]
-            bbox2d_gt[:, 2:] = np.array([o.box2d for o in objs])
+            bbox2d_gt[:, 2:] = xyxy2xywh(np.array([o.box2d for o in objs]))
 
         # print(bbox2d_gt)
 

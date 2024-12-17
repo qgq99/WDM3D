@@ -6,13 +6,13 @@ dataset:
 
         depth_mode: "pred"  # 深度图标签有三种["gt", "interp", "pred"]
 
-        detect_classes: ["Car", "Pedestrian"]
+        detect_classes: ["Car", "Pedestrian", "Van", "Truck", "Person_sitting", "Cyclist", "Tram"]
         use_right_image: False
         max_objects: 40
         filter_anno_enable: True
         filter_annos: [0.9, 20]
         consider_outside_objs: True
-        filter_more_strictly: True
+        filter_more_strictly: False
         filter_more_smoothly: False
 
         pred_ground_plane: True

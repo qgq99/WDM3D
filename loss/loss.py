@@ -45,6 +45,7 @@ class WDM3DLoss(nn.Module):
         """
         TODO: depth_gt总包含值为inf的像素点, 表示该像素点确实深度, 需要特别处理
         """
+        # pdb.set_trace()
         device = depth_pred.device
         batch_size = len(roi_points)
 
@@ -53,7 +54,8 @@ class WDM3DLoss(nn.Module):
         yolov9 loss中需求的label中image index实际为一个batch中的index
         """
         for i, v in enumerate(bbox2d_gt):
-            v[: 0] = i
+            # v[: 0] = i
+            bbox2d_gt[i][:, 0] = i
             obj_cnt_each_img.append(v.shape[0])
         bbox2d_gt = torch.cat(bbox2d_gt)
 
@@ -91,19 +93,20 @@ class WDM3DLoss(nn.Module):
 
             # bbox2d_loss = bbox2d_loss
 
-            if len(bbox2d_pred[i]) != len(roi_points[i]):
-                """
-                len(roi_points[i])表示预测到的实例数， 若二者不相等, 说明2d框的预测值中有面积为0的框
-                此时跳过该次计算并给定一个常数损失值
-                """
-                # pdb.set_trace()
-                print("skip 3d loss")
-                loss_3d = loss_3d + 0   # 应将0替换某一正值, 且配置为参数
-            elif mn_obj_cnt == 0:
+            # if len(bbox2d_pred[i]) != len(roi_points[i]):
+            #     """
+            #     len(roi_points[i])表示预测到的实例数， 若二者不相等, 说明2d框的预测值中有面积为0的框
+            #     此时跳过该次计算并给定一个常数损失值
+            #     """
+            #     # pdb.set_trace()
+            #     print("skip 3d loss")
+            #     loss_3d = loss_3d + 0   # 应将0替换某一正值, 且配置为参数
+            if mn_obj_cnt == 0:
                 """
                 gt无目标或检测结果无目标, 无从计算3d loss
                 """
-                continue
+                print("gt无目标或检测结果无目标 0 3d loss")
+                loss_3d = loss_3d + 0   # 应将0替换某一正值, 且配置为参数
             else:
                 # pdb.set_trace()
                 data = generate_data_for_loss(
