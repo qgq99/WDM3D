@@ -1,14 +1,14 @@
 export CUDA_VISIBLE_DEVICES=1
 
 
-title="generate_yolov9_weight"
-desc="本次实验前经过debug，发现并解决两个问题: 1. yolov9 loss中对bboxgt强制执行了xywh2xyxy, 而本数据集给出的格式是xyxy；2. loss计算前给bboxgt上img idx， 之前逻辑有误，已调整"
+title="observe_overall_result_with_with_load_primary_yolov9_pt"
+desc="使用yolov9官方的权重文件并查看训练结果. ps: yolov9官方的权重文件nc为80类别, 本实验用的kitti实际类别数为7"
 
 
 cur_time=$(date "+%Y-%m-%d_%H_%M_%S")
 config_file=/home/qinguoqing/project/WDM3D/config/exp/exp.yaml
 batch_size=4
-epoch=15
+epoch=20
 output_dir=/home/qinguoqing/project/WDM3D/output/train/${title}_${cur_time}
 
 nohup python script/train.py \

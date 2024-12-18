@@ -51,8 +51,6 @@ def select_depth_and_project_to_points(depth, calib, bboxes):
             cloud = calib.project_image_to_velo(points)
             # pdb.set_trace()
             single_img_pseudo_roi_point_cloud.append(cloud)
-        else:
-            pdb.set_trace()
     # return single_img_pseudo_point_cloud
     return single_img_pseudo_roi_point_cloud
 
@@ -108,6 +106,12 @@ class WDM3D(nn.Module):
             self.load_state_dict(torch.load(config["ckpt"], weights_only=True))
             logger.success(f"Successfully loaded ckeckpoint: {config['ckpt']}")
 
+        if "detector_2d_weight" in config and os.path.exists(config["detector_2d_weight"]):
+            self.detector_2d.load_state_dict(torch.load(
+                config["detector_2d_weight"], weights_only=True))
+            logger.success(
+                f"Successfully loaded detector_2d_weight: {config['detector_2d_weight']}")
+
         logger.success(
             f"Successfully created WDM3D model, model parameter count: {calc_model_params_count(self):.2f}MB")
 
@@ -128,7 +132,8 @@ class WDM3D(nn.Module):
         # pdb.set_trace()
         detector_2d_output = self.detector_2d(x)
         # pdb.set_trace()
-        bbox_2d = non_max_suppression(detector_2d_output[0][0], conf_thres=0.01, max_det=20)
+        bbox_2d = non_max_suppression(
+            detector_2d_output[0][0], conf_thres=0.1, max_det=20)
         # pdb.set_trace()
         # bbox_2d = [torch.stack([random_bbox2d(device=device) for _ in range(6)]) for __ in range(b)]
 
@@ -148,7 +153,6 @@ class WDM3D(nn.Module):
         neck_output_feats[0] = neck_output_feats[0] + depth_feat
 
         depth_aware_feats = self.neck_fusion(neck_output_feats)
-
 
         pred = self.head(depth_aware_feats, bbox_2d)
         """
