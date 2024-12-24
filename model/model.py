@@ -101,16 +101,23 @@ class WDM3D(nn.Module):
             self.detector_2d.hyp = load_config(
                 "/home/qinguoqing/project/WDM3D/config/yolo/hyp.scratch-high.yaml", sub_cfg_keys=[])
 
+        # ================================load pretrained weight======================================================
         # pdb.set_trace()
         if "ckpt" in config and os.path.exists(config["ckpt"]):
             self.load_state_dict(torch.load(config["ckpt"], weights_only=True))
             logger.success(f"Successfully loaded ckeckpoint: {config['ckpt']}")
 
-        if "detector_2d_weight" in config and os.path.exists(config["detector_2d_weight"]):
+        if "detector_2d_ckpt" in config and os.path.exists(config["detector_2d_ckpt"]):
             self.detector_2d.load_state_dict(torch.load(
-                config["detector_2d_weight"], weights_only=True))
+                config["detector_2d_ckpt"], weights_only=True))
             logger.success(
-                f"Successfully loaded detector_2d_weight: {config['detector_2d_weight']}")
+                f"Successfully loaded detector_2d_ckpt: {config['detector_2d_ckpt']}")
+
+        if type(self.backbone) == FastViT and "backbone_ckpt" in config and os.path.exists(config["backbone_ckpt"]):
+            self.backbone.load_state_dict(torch.load(
+                config["backbone_ckpt"], weights_only=True), strict=False)
+            logger.success(
+                f"Successfully loaded backbone_ckpt: {config['backbone_ckpt']}")
 
         logger.success(
             f"Successfully created WDM3D model, model parameter count: {calc_model_params_count(self):.2f}MB")

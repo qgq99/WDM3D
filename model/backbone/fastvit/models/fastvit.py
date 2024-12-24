@@ -833,6 +833,10 @@ class FastViT(nn.Module):
 
         self.network = nn.ModuleList(network)
 
+        """
+        update: no matter fork_feat or not, create both norm_layers and Classifier head
+        """
+
         # For segmentation and detection, extract intermediate output
         if self.fork_feat:
             # add a norm layer for each output

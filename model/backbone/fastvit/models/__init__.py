@@ -3,6 +3,7 @@
 # Copyright (C) 2023 Apple Inc. All rights reserved.
 #
 from .fastvit import (
+    FastViT,
     fastvit_t8,
     fastvit_t12,
     fastvit_s12,

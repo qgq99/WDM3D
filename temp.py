@@ -8,8 +8,8 @@
 
 from utils.wdm3d_utils import load_config, create_module, Timer
 import torch
-from model.model import WDM3D
-from model.detector_2d import *
+from model.backbone.fastvit.models import fastvit_t12
+import os
 
 G = globals()
 
@@ -17,17 +17,19 @@ G = globals()
 def main():
     device = torch.device("cuda:0")
     # cfg = load_config("/home/qinguoqing/project/WDM3D/config/yolo/yolov9-s.yaml", sub_cfg_keys=[])
+    fastvit = fastvit_t12(fork_feat=True)
+    checkpoint = torch.load(
+        "/home/qinguoqing/project/WDM3D/weight/fastvit_t12.pth.tar", weights_only=True)
+    fastvit.load_state_dict(checkpoint['state_dict'], strict=False)
 
-    yolo = DetectionModel(
-        "/home/qinguoqing/project/WDM3D/config/yolo/yolov9-s.yaml")
+    # fastvit.fork_feat = True
+    # fastvit.out_indices = [0, 2, 4, 6]
 
-    # # print(yolo)
-    yolov9_sd = torch.load(
-        "/home/qinguoqing/project/WDM3D/weight/model_sd.pth", weights_only=True)
+    img = torch.randn((1, 3, 224, 224))
 
-    yolo.load_state_dict(yolov9_sd)
-    # print(yolov9_sd.keys())
-    print(yolo)
+    y = fastvit(img)
+    print([i.shape for i in y])
+    print(type(fastvit))
 
 
 if __name__ == '__main__':
