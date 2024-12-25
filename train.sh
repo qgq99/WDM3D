@@ -1,14 +1,14 @@
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=0
 
 
-title="train_with_backbone_ckpt"
-desc="同时使用backbone的2d detector的ckpt进行训练，得到的权重用于查看可视化效果"
+title="observe_result_with_bbox2d_detach"
+desc="将nms需要的feat以及结果detach，观察loss曲线"
 
 
 cur_time=$(date "+%Y-%m-%d_%H_%M_%S")
 config_file=/home/qinguoqing/project/WDM3D/config/exp/exp.yaml
 batch_size=4
-epoch=15
+epoch=30
 output_dir=/home/qinguoqing/project/WDM3D/output/train/${title}_${cur_time}
 
 nohup python script/train.py \

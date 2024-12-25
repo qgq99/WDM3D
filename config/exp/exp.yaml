@@ -7,7 +7,7 @@ model: "/home/qinguoqing/project/WDM3D/config/model/WDM3D.yaml"
 loss:
     module: "WDM3DLoss"
     params: 
-        sample_roi_points: 100
+        sample_roi_points: 200
         dim_prior: [[0.8, 1.8, 0.8], [0.6, 1.8, 1.8], [1.6, 1.8, 4.]]
         loss_weights: [1, 0.9, 0.5]     # 依次为loss_3d, depth_loss, bbox2d_loss的权重
         inf_pixel_loss: 0.001
