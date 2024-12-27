@@ -1,14 +1,14 @@
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=1
 
 
-title="observe_result_with_bbox2d_detach"
-desc="将nms需要的feat以及结果detach，观察loss曲线"
+title="observe_result"
+desc=""
 
 
 cur_time=$(date "+%Y-%m-%d_%H_%M_%S")
 config_file=/home/qinguoqing/project/WDM3D/config/exp/exp.yaml
 batch_size=4
-epoch=30
+epoch=70
 output_dir=/home/qinguoqing/project/WDM3D/output/train/${title}_${cur_time}
 
 nohup python script/train.py \

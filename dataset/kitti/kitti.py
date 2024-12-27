@@ -72,8 +72,12 @@ class KITTIDataset(Dataset):
 
         self.is_train = self.split == "train"
         self.transforms = transforms
-        self.imageset_txt = self.root / self.split / \
-            "ImageSets" / "trainval.txt"
+        # self.imageset_txt = self.root / self.split / \
+        #     "ImageSets" / "trainval.txt"
+        
+        self.imageset_txt = self.root / "train" / \
+            "ImageSets" / f"{self.split}.txt"
+
         assert os.path.exists(
             self.imageset_txt), "ImageSets file not exist, dir = {}".format(self.imageset_txt)
 
