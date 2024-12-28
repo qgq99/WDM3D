@@ -54,7 +54,7 @@ def get_arg_parser():
     parser.add_argument("--epoch", default=10, type=int)
     parser.add_argument("--batch_size", default=4, type=int)
     parser.add_argument("--CUDA_VISIBLE_DEVICES", default="0")
-    parser.add_argument("--device", default="cuda:0")
+    parser.add_argument("--device", default="cuda:1")
 
     parser.add_argument("--gt_dir", default="/home/qinguoqing/dataset/kitti/train/label_2")
 
@@ -89,34 +89,40 @@ def main(args):
         model.eval()
         for batch_idx, sample in tqdm(enumerate(val_dataloader)):
             # batch_input = build_dataloader.process_batch_data(sample)
-            pdb.set_trace()
+            # pdb.set_trace()
 
             sample = sample[0]
             batch_input = {}
             for k in sample.keys():
-                if k == 'file_name':
+                if k == 'file_name' or k == "calib":
                     batch_input[k] = sample[k]
                 else:
                     batch_input[k] = torch.tensor(sample[k], device=device)
 
 
-            P2 = batch_input['P2'][0].cpu().numpy()
+            calib = batch_input['calib']
+            P2 = batch_input['calib'].P
             bbox2d = batch_input['bbox2d'][0].cpu().numpy()
             det_2D = batch_input['det_2D'][0].cpu().numpy()
-            file_name = batch_input['file_name'][0]
+            file_name = batch_input['file_name']
 
+            pdb.set_trace()
             if bbox2d.shape[0] < 1:
                 np.savetxt('{}/{}.txt'.format(save_dir_exp, file_name), np.array([]), fmt='%s')
                 continue
+            
+            img = batch_input["l_img"].permute(2, 0, 1).unsqueeze(0)
 
-            pred_3D = model(batch_input['l_img'], batch_input['bbox2d'])
+            pred_3D = model.forward_test(img, calib)
 
             p_locxy, p_locZ, p_ortConf = pred_3D
+            p_locxy, p_locZ, p_ortConf = p_locxy[0], p_locZ[0], p_ortConf[0]
             p_locXYZ = torch.cat([p_locxy, p_locZ], dim=1)
 
             fx, fy, cx, cy = P2[0][0], P2[1][1], P2[0][2], P2[1][2]
 
             det_3D = np.zeros((p_locXYZ.shape[0], 16), dtype=object)
+            pdb.set_trace()
             det_3D[:, 0] = ['Car' for _ in range(p_locXYZ.shape[0])]
             det_3D[:, 4:8] = det_2D[:, 1:5]
             det_3D[:, -1] = det_2D[:, -1]

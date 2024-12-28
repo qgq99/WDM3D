@@ -185,22 +185,28 @@ class WDM3D(nn.Module):
         b, c, h, w = x.shape
         device = x.device
         features = self.backbone(x)
-        # pdb.set_trace()
-        neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(
-            features, h, w, torch.stack([t.get_field("slope_map") for t in targets]))
 
-        # pdb.set_trace()
         detector_2d_output = self.detector_2d(x)
-        # pdb.set_trace()
         bbox_2d = non_max_suppression(
             detector_2d_output[0][0].detach(), conf_thres=0.1, max_det=20)
-        
         bbox_2d = [i.detach() for i in bbox_2d]     # predicted bbox do not need gradient
+
+
+
+        pdb.set_trace()
+
+        depth_pred, depth_feat = self.depther(features, h, w)
+
+        pes =  [calc_pe(h, w, t.get_field("calib")) for t in targets]
+        slope_maps = torch.stack([generate_slope_map(p, d.detach().cpu()) for p, d in zip(pes, depth_pred)]).to(device)
+        neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(
+            features, h, w, slope_maps)
+
+
 
         # pdb.set_trace()
         # bbox_2d = [torch.stack([random_bbox2d(device=device) for _ in range(6)]) for __ in range(b)]
 
-        depth_pred, depth_feat = self.depther(neck_output_feats, h, w)
 
         # pseudo_LiDAR_points = self.calc_pseudo_LiDAR_point(
         #     depth_pred, [t.get_field("calib") for t in targets])
@@ -239,9 +245,8 @@ class WDM3D(nn.Module):
 
         depth_pred, depth_feat = self.depther(features, h, w)
 
-        pe = calc_pe(h, w, calib)
-
-        slope_maps = torch.stack([generate_slope_map(pe, d) for d in depth_pred])
+        pes =  [calc_pe(h, w, calib)]
+        slope_maps = torch.stack([generate_slope_map(p, d.detach().cpu()) for p, d in zip(pes, depth_pred)]).to(device)
 
         # pdb.set_trace()
         neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(
@@ -273,7 +278,7 @@ class WDM3D(nn.Module):
         """
         detector_2d_output[1] is for yolov9 loss
         """
-        return pred
+        return pred[1]
 
     def calc_selected_pseudo_LiDAR_point(self, depths: torch.Tensor, bboxes: list[np.ndarray], calibs: list[Calibration], img_size=(384, 1280)):
         """

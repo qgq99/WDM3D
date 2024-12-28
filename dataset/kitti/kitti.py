@@ -663,9 +663,9 @@ class KITTIDataset(Dataset):
 
 
             return {
-                'P2': calib.P,
+                'calib': calib,
                 'file_name': Path(self.image_files[idx]).with_suffix(""),
-                'l_img': ori_img,
+                'l_img': img.astype(np.float32),
                 'det_2D': det_2D.astype(np.float32),
                 'bbox2d': bbox2d.astype(np.float32)
             }
@@ -955,7 +955,7 @@ class KITTIDataset(Dataset):
         depth_map = self.load_depth_map(
             Path(self.image_files[idx]).with_suffix(""))
         # calculate pre-computed ground embeding
-        pe = self.calc_pe(self.input_height, self.input_width, calib)
+        # pe = self.calc_pe(self.input_height, self.input_width, calib)
 
         # if depth_map.shape != pe.shape:
         #     dh, dw = depth_map.shape
@@ -967,7 +967,7 @@ class KITTIDataset(Dataset):
         # 每个目标中心在像素坐标系下的坐标
         # objs_center_image_coords, _ = calib.project_rect_to_image(locations)
         # pseudo_depth_map = self.generate_pseudo_depth_map(img.size[1], img.size[0], locations, objs_center_image_coords)
-        slope_map = self.generate_slope_map(pe, depth_map)
+        # slope_map = self.generate_slope_map(pe, depth_map)
 
         target = ParamsList(image_size=(h, w), is_train=self.is_train)
         target.add_field("cls_ids", cls_ids)
@@ -1005,8 +1005,8 @@ class KITTIDataset(Dataset):
         target.add_field("bbox2d_gt", bbox2d_gt)    # this is for yolov9 loss
 
         # set pre-computed ground embeding and slope map
-        target.add_field("pe", pe)
-        target.add_field("slope_map", slope_map)
+        # target.add_field("pe", pe)
+        # target.add_field("slope_map", slope_map)
         target.add_field("depth_map", depth_map)
 
         if self.enable_edge_fusion:
