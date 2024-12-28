@@ -650,24 +650,24 @@ class KITTIDataset(Dataset):
 
         if not self.is_train:
             
-            det_2D = np.loadtxt(self.root / "train" / "rgb_detections" / "val" / Path(self.image_files[idx]).with_suffix(".txt"), dtype=str).reshape(-1, 6)
-            det_2D_ind = np.array([i in self.classes for i in det_2D[:, 0]])
+            # det_2D = np.loadtxt(self.root / "train" / "rgb_detections" / "val" / Path(self.image_files[idx]).with_suffix(".txt"), dtype=str).reshape(-1, 6)
+            # det_2D_ind = np.array([i in self.classes for i in det_2D[:, 0]])
             
-            if len(det_2D_ind) < 1:
-                return {'P2': np.array([]), 'file_name': Path(self.image_files[idx]).with_suffix(""), 'l_img': np.array([]), 'det_2D': np.array([]), 'bbox2d': np.array([])}
-            det_2D = det_2D[det_2D_ind]
-            bbox2d = (det_2D[:, 1:5]).copy()
+            # if len(det_2D_ind) < 1:
+            #     return {'P2': np.array([]), 'file_name': Path(self.image_files[idx]).with_suffix(""), 'l_img': np.array([]), 'det_2D': np.array([]), 'bbox2d': np.array([])}
+            # det_2D = det_2D[det_2D_ind]
+            # bbox2d = (det_2D[:, 1:5]).copy()
 
-            bbox2d = bbox2d.astype(np.float32)
-            det_2D[:, 0] = np.array([self.class2Idx[i] for i in det_2D[:, 0]])
+            # bbox2d = bbox2d.astype(np.float32)
+            # det_2D[:, 0] = np.array([self.class2Idx[i] for i in det_2D[:, 0]])
 
 
             return {
                 'calib': calib,
                 'file_name': Path(self.image_files[idx]).with_suffix(""),
                 'l_img': img.astype(np.float32),
-                'det_2D': det_2D.astype(np.float32),
-                'bbox2d': bbox2d.astype(np.float32)
+                # 'det_2D': det_2D.astype(np.float32),
+                # 'bbox2d': bbox2d.astype(np.float32)
             }
             # for inference we parametrize with original size
             # target = ParamsList(image_size=(h, w), is_train=self.is_train)

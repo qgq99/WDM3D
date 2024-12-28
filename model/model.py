@@ -193,7 +193,7 @@ class WDM3D(nn.Module):
 
 
 
-        pdb.set_trace()
+        # pdb.set_trace()
 
         depth_pred, depth_feat = self.depther(features, h, w)
 
@@ -278,7 +278,7 @@ class WDM3D(nn.Module):
         """
         detector_2d_output[1] is for yolov9 loss
         """
-        return pred[1]
+        return pred[1], bbox_2d
 
     def calc_selected_pseudo_LiDAR_point(self, depths: torch.Tensor, bboxes: list[np.ndarray], calibs: list[Calibration], img_size=(384, 1280)):
         """

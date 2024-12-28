@@ -127,7 +127,7 @@ def main(args):
             with Timer(f"epoch {epoch_idx+1}", printer=logger.success):
                 cur_epoch_total_loss, cur_epoch_3dloss, cur_epoch_bbox2d_loss, cur_epoch_depth_loss = 0, 0, 0, 0
                 for batch_idx, (img, targets, original_idx) in enumerate(dataloader):
-                    pdb.set_trace()
+                    # pdb.set_trace()
                     with Timer(f"batch [{batch_idx}]", work=False):
                         optimizer.zero_grad()
                         img = img.to(device)

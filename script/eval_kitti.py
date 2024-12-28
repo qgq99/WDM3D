@@ -54,7 +54,10 @@ def get_arg_parser():
     parser.add_argument("--epoch", default=10, type=int)
     parser.add_argument("--batch_size", default=4, type=int)
     parser.add_argument("--CUDA_VISIBLE_DEVICES", default="0")
-    parser.add_argument("--device", default="cuda:1")
+
+    parser.add_argument("--ckpt", default="/home/qinguoqing/project/WDM3D/output/train/observe_result_2024-12-27_21_31_49/model_sd.pth")
+
+    parser.add_argument("--device", default="cuda:0")
 
     parser.add_argument("--gt_dir", default="/home/qinguoqing/dataset/kitti/train/label_2")
 
@@ -68,7 +71,12 @@ def main(args):
     cfg = load_config(args.config)
     save_dir_exp = args.output_dir
     # pdb.set_trace()
+
     cfg["dataset"]["params"]["split"] = "val"
+    cfg["model"]["ckpt"] = args.ckpt
+    cfg["model"]["detector_2d_ckpt"] = ""
+    cfg["model"]["backbone_ckpt"] = ""
+
     kitti_valset = create_module(G, cfg, "dataset")
     val_dataloader = DataLoader(kitti_valset,
                                 batch_size=1,
@@ -78,15 +86,18 @@ def main(args):
                                 collate_fn=lambda x: x
                                 )
 
+
+    idx2class = {v: k for k, v in kitti_valset.class2Idx.items()}
+
+
     
     model = WDM3D(cfg["model"]).to(device)
-
+    model.eval()
 
     
     if not os.path.exists(save_dir_exp):
         os.mkdir(save_dir_exp)
     with torch.no_grad():
-        model.eval()
         for batch_idx, sample in tqdm(enumerate(val_dataloader)):
             # batch_input = build_dataloader.process_batch_data(sample)
             # pdb.set_trace()
@@ -102,35 +113,43 @@ def main(args):
 
             calib = batch_input['calib']
             P2 = batch_input['calib'].P
-            bbox2d = batch_input['bbox2d'][0].cpu().numpy()
-            det_2D = batch_input['det_2D'][0].cpu().numpy()
+            # bbox2d = batch_input['bbox2d'][0].cpu().numpy()
+            # det_2D = batch_input['det_2D'][0].cpu().numpy()
             file_name = batch_input['file_name']
 
-            pdb.set_trace()
-            if bbox2d.shape[0] < 1:
-                np.savetxt('{}/{}.txt'.format(save_dir_exp, file_name), np.array([]), fmt='%s')
-                continue
+            # pdb.set_trace()
+            # if bbox2d.shape[0] < 1:
+            #     np.savetxt('{}/{}.txt'.format(save_dir_exp, file_name), np.array([]), fmt='%s')
+            #     continue
             
             img = batch_input["l_img"].permute(2, 0, 1).unsqueeze(0)
 
-            pred_3D = model.forward_test(img, calib)
+            pred_3D, bbox2d_pred = model.forward_test(img, calib)
+
+            bbox2d_pred = bbox2d_pred[0].cpu().numpy()
 
             p_locxy, p_locZ, p_ortConf = pred_3D
             p_locxy, p_locZ, p_ortConf = p_locxy[0], p_locZ[0], p_ortConf[0]
+
             p_locXYZ = torch.cat([p_locxy, p_locZ], dim=1)
+        
 
             fx, fy, cx, cy = P2[0][0], P2[1][1], P2[0][2], P2[1][2]
 
             det_3D = np.zeros((p_locXYZ.shape[0], 16), dtype=object)
-            pdb.set_trace()
-            det_3D[:, 0] = ['Car' for _ in range(p_locXYZ.shape[0])]
-            det_3D[:, 4:8] = det_2D[:, 1:5]
-            det_3D[:, -1] = det_2D[:, -1]
+            # pdb.set_trace()
+            # det_3D[:, 0] = ['Car' for _ in range(p_locXYZ.shape[0])]
+            det_3D[:, 0] = [idx2class[i] for i in bbox2d_pred[:, -1]]
+            # det_3D[:, 4:8] = det_2D[:, 1:5]
+            det_3D[:, 4:8] = bbox2d_pred[:, :4]
+            # det_3D[:, -1] = det_2D[:, -1]
+            det_3D[:, -1] = bbox2d_pred[:, -2]
             '''car dimension'''
             det_3D[:, 8:11] = [np.array(cfg["loss"]["params"]["dim_prior"][2]) for _ in range(p_locXYZ.shape[0])]
 
             for i in range(len(p_locXYZ)):
-                p, b = p_locXYZ[i], det_2D[i, 1:5]
+                p, b = p_locXYZ[i], bbox2d_pred[i, :4]
+
                 h, w, center_x, center_y = b[3] - b[1], b[2] - b[0], (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
                 proj_box_center = ((F.sigmoid(p[:2]) - 0.5) * torch.tensor([w, h]).cuda() + \
                                    torch.tensor([center_x, center_y]).cuda() - \
@@ -146,6 +165,7 @@ def main(args):
                 det_3D[i, 12] += float(det_3D[i, 8]) / 2
                 det_3D[i, -2] = det_3D[i, 3] + np.arctan2(det_3D[i, 11], det_3D[i, 13])
 
+            # pdb.set_trace()
             det_3D[:, 1:] = np.around(det_3D[:, 1:].astype(np.float64), decimals=5)
             np.savetxt('{}/{}.txt'.format(save_dir_exp, file_name), det_3D, fmt='%s')
         post_3d(save_dir_exp, save_dir_exp)

@@ -23,4 +23,4 @@ loss:
 optimizer:
     module: "Adam"
     params:
-        lr: 0.0005
+        lr: 0.001

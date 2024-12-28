@@ -29,20 +29,7 @@ def infer_collate_fn(sample):
 
 def main():
     device = torch.device("cuda:0")
-    cfg = load_config("/home/qinguoqing/project/WDM3D/config/data/data.yaml", sub_cfg_keys=[])
-    cfg["dataset"]["params"]["split"] = "val"
-    kitti = create_module(G, cfg, "dataset")
-
-    val_dataloader = DataLoader(kitti,
-                                batch_size=1,
-                                shuffle=False,
-                                num_workers=4,
-                                drop_last=False,
-                                collate_fn=infer_collate_fn
-                                )
-
-    for batch in val_dataloader:
-        print(batch)
+    # cfg = load_config("/home/qinguoqing/project/WDM3D/config/data/data.yaml", sub_cfg_keys=[])
 
 if __name__ == '__main__':
     main()
