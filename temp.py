@@ -7,30 +7,42 @@
 """
 
 from utils.wdm3d_utils import load_config, create_module, Timer
+from dataset.kitti.kitti import KITTIDataset
 import torch
-from model.backbone.fastvit.models import fastvit_t12
 import os
+from torch.utils.data import DataLoader
 
 G = globals()
 
 
+
+def infer_collate_fn(sample):
+    sample = sample[0]
+    batch_data = {}
+    for k in sample.keys():
+        if k == 'file_name':
+            batch_data[k] = sample[k]
+        else:
+            batch_data[k] = torch.tensor(sample[k], device="cuda:0")
+    return batch_data
+
+
 def main():
     device = torch.device("cuda:0")
-    # cfg = load_config("/home/qinguoqing/project/WDM3D/config/yolo/yolov9-s.yaml", sub_cfg_keys=[])
-    fastvit = fastvit_t12(fork_feat=True)
-    checkpoint = torch.load(
-        "/home/qinguoqing/project/WDM3D/weight/fastvit_t12.pth.tar", weights_only=True)
-    fastvit.load_state_dict(checkpoint['state_dict'], strict=False)
+    cfg = load_config("/home/qinguoqing/project/WDM3D/config/data/data.yaml", sub_cfg_keys=[])
+    cfg["dataset"]["params"]["split"] = "val"
+    kitti = create_module(G, cfg, "dataset")
 
-    # fastvit.fork_feat = True
-    # fastvit.out_indices = [0, 2, 4, 6]
+    val_dataloader = DataLoader(kitti,
+                                batch_size=1,
+                                shuffle=False,
+                                num_workers=4,
+                                drop_last=False,
+                                collate_fn=infer_collate_fn
+                                )
 
-    img = torch.randn((1, 3, 224, 224))
-
-    y = fastvit(img)
-    print([i.shape for i in y])
-    print(type(fastvit))
-
+    for batch in val_dataloader:
+        print(batch)
 
 if __name__ == '__main__':
     main()

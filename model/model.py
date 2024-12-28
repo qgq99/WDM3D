@@ -24,6 +24,58 @@ import pdb
 
 G = globals()
 
+def find_k(depth_map, pe):
+    """
+    copy-paste from code of GEDepth
+    """
+    a = 1.65 / pe
+    b = 1.65 / depth_map
+    k = b + a
+    return k
+
+def calc_pe(h, w, calib: Calibration):
+    """
+    calculate the pre-computed ground embeding, the following calculation process is acoording to paper "GEDepth"
+    h: height of the current image
+    w: width of the current image
+    calib: calibration of the current image
+    """
+    u, v = np.meshgrid(range(w), range(h), indexing="xy")
+
+    P2, R0_rect, Tr_velo_to_cam = calib.P, calib.R0, calib.V2C
+
+    K = P2[:, 0:3]
+    R = R0_rect
+    T = Tr_velo_to_cam[:, 3]
+    A = np.linalg.inv(K @ R)
+    B = np.linalg.inv(R) @ (- T)
+    zc = (1.65 - B[1]) / (A[1, 0] * u + A[1, 1] * v + A[1, 2])
+
+    return zc
+
+def generate_slope_map(pe, depth_map):
+    """
+    !!!
+    the code is from GEDepth, its meaning is not so clear,
+    guessing the k(ie. k-img in the original code) refer to slope map mentioned in its paper.
+    !!!
+    """
+    valid_mask = depth_map == 0
+    k = find_k(depth_map, pe)
+    k = np.around(np.rad2deg(np.arctan(k)))
+    k[k > 5] = 5
+    k[k < -5] = -5
+    k[valid_mask] = 255
+
+    return k
+
+
+
+
+
+
+
+
 
 def project_depth_to_points(calib, depth, max_high):
     rows, cols = depth.shape
@@ -123,10 +175,11 @@ class WDM3D(nn.Module):
             f"Successfully created WDM3D model, model parameter count: {calc_model_params_count(self):.2f}MB")
 
     def forward(self, x: torch.Tensor, targets=None):
-
         if self.training:
             return self.forward_train(x, targets)
-        return self.forward_test(x)
+        return self.forward_test()
+
+        
 
     def forward_train(self, x: torch.Tensor, targets):
         b, c, h, w = x.shape
@@ -170,8 +223,57 @@ class WDM3D(nn.Module):
         """
         return bbox_2d, detector_2d_output[1], depth_pred, pseudo_LiDAR_points, pred
 
-    def forward_test(self, x):
-        pass
+    def forward_test(self, x, calib: Calibration):
+        b, c, h, w = x.shape
+        device = x.device
+        features = self.backbone(x)
+
+        # pdb.set_trace()
+        detector_2d_output = self.detector_2d(x)
+        # pdb.set_trace()
+        bbox_2d = non_max_suppression(
+            detector_2d_output[0][0].detach(), conf_thres=0.1, max_det=20)
+        bbox_2d = [i.detach() for i in bbox_2d]     # predicted bbox do not need gradient
+
+
+
+        depth_pred, depth_feat = self.depther(features, h, w)
+
+        pe = calc_pe(h, w, calib)
+
+        slope_maps = torch.stack([generate_slope_map(pe, d) for d in depth_pred])
+
+        # pdb.set_trace()
+        neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(
+            features, h, w, slope_maps)
+
+
+
+        # pdb.set_trace()
+        # bbox_2d = [torch.stack([random_bbox2d(device=device) for _ in range(6)]) for __ in range(b)]
+
+
+
+        # pseudo_LiDAR_points = self.calc_pseudo_LiDAR_point(
+        #     depth_pred, [t.get_field("calib") for t in targets])
+        # pdb.set_trace()
+
+        # pseudo_LiDAR_points = self.calc_selected_pseudo_LiDAR_point(
+        #     depth_pred, bbox_2d, [t.get_field("calib") for t in targets], img_size=(h, w))
+
+        """
+        因为depth_feat与neck_output_feats[0]的尺寸相同, 先做初步融合
+        TODO: 验证相加, 相乘或更多融合操作的效果
+        """
+        neck_output_feats[0] = neck_output_feats[0] + depth_feat
+
+        depth_aware_feats = self.neck_fusion(neck_output_feats)
+
+        pred = self.head(depth_aware_feats, bbox_2d)
+        """
+        detector_2d_output[1] is for yolov9 loss
+        """
+        return pred
 
     def calc_selected_pseudo_LiDAR_point(self, depths: torch.Tensor, bboxes: list[np.ndarray], calibs: list[Calibration], img_size=(384, 1280)):
         """

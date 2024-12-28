@@ -64,11 +64,17 @@ class KITTIDataset(Dataset):
         self.root = Path(config["root"])
         self.split = config["split"]
 
-        self.image_dir = self.root / self.split / "image_2"
-        self.image_right_dir = self.root / self.split / "image_3"
-        self.label_dir = self.root / self.split / "label_2"
-        self.calib_dir = self.root / self.split / "calib"
-        self.planes_dir = self.root / self.split / "planes"
+        # self.image_dir = self.root / self.split / "image_2"
+        # self.image_right_dir = self.root / self.split / "image_3"
+        # self.label_dir = self.root / self.split / "label_2"
+        # self.calib_dir = self.root / self.split / "calib"
+        # self.planes_dir = self.root / self.split / "planes"
+
+        self.image_dir = self.root / "train" / "image_2"
+        self.image_right_dir = self.root / "train" / "image_3"
+        self.label_dir = self.root / "train" / "label_2"
+        self.calib_dir = self.root / "train" / "calib"
+        self.planes_dir = self.root / "train" / "planes"
 
         self.is_train = self.split == "train"
         self.transforms = transforms
@@ -501,7 +507,7 @@ class KITTIDataset(Dataset):
         加载将每个图像的深度图的实际深度最值, 该最值将用于把深度图的像素值还原为实际深度值
         """
         depth_mxmn_vals_map = {}
-        path = self.root / self.split / "depth" / "max_min_val_map" / f"max_min_val_{self.depth_mode}.txt"
+        path = self.root / "train" / "depth" / "max_min_val_map" / f"max_min_val_{self.depth_mode}.txt"
         with open(path) as f:
             for line in f:
                 [img_name, mx, mn] = line.strip().split()
@@ -553,7 +559,7 @@ class KITTIDataset(Dataset):
     def generate_slope_map(self, pe, depth_map):
         """
         !!!
-        the code is from GEDepth, its meaning if not so clear,
+        the code is from GEDepth, its meaning is not so clear,
         guessing the k(ie. k-img in the original code) refer to slope map mentioned in its paper.
         !!!
         """
@@ -642,22 +648,42 @@ class KITTIDataset(Dataset):
             input_edge_indices[: edge_indices.shape[0]] = edge_indices
             input_edge_count = input_edge_count - 1  # explain ?
 
-        if self.split == 'test':
+        if not self.is_train:
+            
+            det_2D = np.loadtxt(self.root / "train" / "rgb_detections" / "val" / Path(self.image_files[idx]).with_suffix(".txt"), dtype=str).reshape(-1, 6)
+            det_2D_ind = np.array([i in self.classes for i in det_2D[:, 0]])
+            
+            if len(det_2D_ind) < 1:
+                return {'P2': np.array([]), 'file_name': Path(self.image_files[idx]).with_suffix(""), 'l_img': np.array([]), 'det_2D': np.array([]), 'bbox2d': np.array([])}
+            det_2D = det_2D[det_2D_ind]
+            bbox2d = (det_2D[:, 1:5]).copy()
+
+            bbox2d = bbox2d.astype(np.float32)
+            det_2D[:, 0] = np.array([self.class2Idx[i] for i in det_2D[:, 0]])
+
+
+            return {
+                'P2': calib.P,
+                'file_name': Path(self.image_files[idx]).with_suffix(""),
+                'l_img': ori_img,
+                'det_2D': det_2D.astype(np.float32),
+                'bbox2d': bbox2d.astype(np.float32)
+            }
             # for inference we parametrize with original size
-            target = ParamsList(image_size=(h, w), is_train=self.is_train)
-            target.add_field("pad_size", pad_size)
-            target.add_field("calib", calib)
-            target.add_field("ori_img", ori_img)
-            if self.enable_edge_fusion:
-                target.add_field('edge_len', input_edge_count)
-                target.add_field('edge_indices', input_edge_indices)
-            if self.pred_ground_plane:
-                target.add_field('horizon_state', horizon_state)
+            # target = ParamsList(image_size=(h, w), is_train=self.is_train)
+            # target.add_field("pad_size", pad_size)
+            # target.add_field("calib", calib)
+            # target.add_field("ori_img", ori_img)
+            # if self.enable_edge_fusion:
+            #     target.add_field('edge_len', input_edge_count)
+            #     target.add_field('edge_indices', input_edge_indices)
+            # if self.pred_ground_plane:
+            #     target.add_field('horizon_state', horizon_state)
 
-            if self.transforms is not None:
-                img, target = self.transforms(img, target)
+            # if self.transforms is not None:
+            #     img, target = self.transforms(img, target)
 
-            return img, target, original_idx
+            # return img, target, original_idx
 
         # heatmap
         heat_map = np.zeros(
