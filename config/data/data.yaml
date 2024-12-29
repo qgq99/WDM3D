@@ -20,12 +20,14 @@ dataset:
         use_ground_plane: False
         horizon_gaussian_radius: 2
         modify_ground_plane_d: False
-        enable_edge_fusion: True
+        enable_edge_fusion: False
         use_edge_slope: False
 
 
         orientation: "multi-bin"
         orientation_bin_size: 4
+        # input_width: 644
+        # input_height: 196
         input_width: 1280
         input_height: 384
         use_approx_center: False

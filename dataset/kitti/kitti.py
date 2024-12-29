@@ -334,13 +334,15 @@ class KITTIDataset(Dataset):
     def pad_image(self, image):
         # img = np.array(image)
         h, w, c = image.shape
-        ret_img = np.zeros((self.input_height, self.input_width, c))
-        pad_y = (self.input_height - h) // 2
-        pad_x = (self.input_width - w) // 2
-
-        ret_img[pad_y: pad_y + h, pad_x: pad_x + w] = image
-        pad_size = np.array([pad_x, pad_y])
-
+        if h <= self.input_height or w <= self.input_width:
+            ret_img = np.zeros((self.input_height, self.input_width, c))
+            pad_y = (self.input_height - h) // 2
+            pad_x = (self.input_width - w) // 2
+            ret_img[pad_y: pad_y + h, pad_x: pad_x + w] = image
+            pad_size = np.array([pad_x, pad_y])
+        else:
+            ret_img = cv2.resize(image, (self.input_width, self.input_height))
+            pad_size = np.array([0, 0])
         return ret_img.astype(np.uint8), pad_size
 
     def get_vertical_edge(self, img):
@@ -531,9 +533,10 @@ class KITTIDataset(Dataset):
 
         if depth.shape != (self.input_height, self.input_width):
             # 若与输入尺寸不同则pad, 确保原图, 深度图以及pe尺寸一致
-            ph, pw = self.input_height - depth.shape[0], self.input_width - depth.shape[1]
-            depth = np.pad(depth, ((ph // 2, ph // 2 + int(ph % 2 == 1)),(pw // 2, pw // 2 + int(pw % 2 == 1))), "constant", constant_values=0)
-
+            # ph, pw = self.input_height - depth.shape[0], self.input_width - depth.shape[1]
+            # depth = np.pad(depth, ((ph // 2, ph // 2 + int(ph % 2 == 1)),(pw // 2, pw // 2 + int(pw % 2 == 1))), "constant", constant_values=0)
+            depth = cv2.resize(depth, (self.input_width, self.input_height))
+        
         if self.depth_mode != "pred":   # mode为pred时, 不存在缺失深度值的像素
             depth[depth == 0] = np.inf  # 值为0表示缺失深度值, 暂用无穷大表示
 

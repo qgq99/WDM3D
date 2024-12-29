@@ -319,3 +319,55 @@ class WDM3D(nn.Module):
                 project_depth_to_points(calib, d, max_high=100))
 
         return pseudo_LiDAR_points
+
+
+
+class WDM3DDepthOff(nn.Module):
+
+    """
+    A WDM3D model without depther inside it, but receive depth from outside, namely "depth off-line".
+    """
+
+    def __init__(self, config=None):
+        super().__init__()
+        self.backbone: nn.Module
+        self.neck: nn.Module
+        self.neck_fusion: nn.Module
+        # self.depther: nn.Module
+        self.detector_2d: nn.Module
+        self.head: nn.Module
+
+        if isinstance(config, str):
+            with open(config) as f:
+                self.cfg = yaml.safe_load(f)["model"]
+        else:
+            self.cfg = config
+
+        for prop in ["backbone", "neck", "neck_fusion", "detector_2d", "head"]:
+            setattr(self, prop, create_module(G, self.cfg, prop))
+
+        if type(self.detector_2d) == DetectionModel:
+            # **if use yolov9 as the 2d detector, attach hyperparameters to it for its loss computation**
+            self.detector_2d.hyp = load_config(
+                "/home/qinguoqing/project/WDM3D/config/yolo/hyp.scratch-high.yaml", sub_cfg_keys=[])
+
+        # ================================load pretrained weight======================================================
+        # pdb.set_trace()
+        if "ckpt" in config and os.path.exists(config["ckpt"]):
+            self.load_state_dict(torch.load(config["ckpt"], weights_only=True))
+            logger.success(f"Successfully loaded ckeckpoint: {config['ckpt']}")
+
+        if "detector_2d_ckpt" in config and os.path.exists(config["detector_2d_ckpt"]):
+            self.detector_2d.load_state_dict(torch.load(
+                config["detector_2d_ckpt"], weights_only=True))
+            logger.success(
+                f"Successfully loaded detector_2d_ckpt: {config['detector_2d_ckpt']}")
+
+        if type(self.backbone) == FastViT and "backbone_ckpt" in config and os.path.exists(config["backbone_ckpt"]):
+            self.backbone.load_state_dict(torch.load(
+                config["backbone_ckpt"], weights_only=True), strict=False)
+            logger.success(
+                f"Successfully loaded backbone_ckpt: {config['backbone_ckpt']}")
+
+        logger.success(
+            f"Successfully created WDM3D model, model parameter count: {calc_model_params_count(self):.2f}M")
