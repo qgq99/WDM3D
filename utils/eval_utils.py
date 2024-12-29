@@ -1416,7 +1416,7 @@ def project_3d(p2, x3d, y3d, z3d, w3d, h3d, l3d, ry3d, return_3d=False):
 
 
 
-def post_3d(det_dir, target_dir, calib_dir='/private/pengliang/KITTI3D/training/calib'):
+def post_3d(det_dir, target_dir, calib_dir='/home/qinguoqing/dataset/kitti/train/calib'):
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 

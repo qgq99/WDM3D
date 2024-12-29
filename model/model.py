@@ -172,7 +172,7 @@ class WDM3D(nn.Module):
                 f"Successfully loaded backbone_ckpt: {config['backbone_ckpt']}")
 
         logger.success(
-            f"Successfully created WDM3D model, model parameter count: {calc_model_params_count(self):.2f}MB")
+            f"Successfully created WDM3D model, model parameter count: {calc_model_params_count(self):.2f}M")
 
     def forward(self, x: torch.Tensor, targets=None):
         if self.training:
@@ -197,8 +197,11 @@ class WDM3D(nn.Module):
 
         depth_pred, depth_feat = self.depther(features, h, w)
 
+        depth_pred_detach = depth_pred.detach()
+
         pes =  [calc_pe(h, w, t.get_field("calib")) for t in targets]
-        slope_maps = torch.stack([generate_slope_map(p, d.detach().cpu()) for p, d in zip(pes, depth_pred)]).to(device)
+        slope_maps = torch.stack([generate_slope_map(p, d.detach().cpu()) for p, d in zip(pes, depth_pred_detach)]).to(device)
+
         neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(
             features, h, w, slope_maps)
 
@@ -213,7 +216,7 @@ class WDM3D(nn.Module):
         # pdb.set_trace()
 
         pseudo_LiDAR_points = self.calc_selected_pseudo_LiDAR_point(
-            depth_pred, bbox_2d, [t.get_field("calib") for t in targets], img_size=(h, w))
+            depth_pred_detach, bbox_2d, [t.get_field("calib") for t in targets], img_size=(h, w))
 
         """
         因为depth_feat与neck_output_feats[0]的尺寸相同, 先做初步融合

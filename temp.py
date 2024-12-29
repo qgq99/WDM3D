@@ -7,29 +7,23 @@
 """
 
 from utils.wdm3d_utils import load_config, create_module, Timer
-from dataset.kitti.kitti import KITTIDataset
 import torch
-import os
-from torch.utils.data import DataLoader
-
+from model.backbone.vit.dinov2 import DINOv2
+import pdb
 G = globals()
 
 
 
-def infer_collate_fn(sample):
-    sample = sample[0]
-    batch_data = {}
-    for k in sample.keys():
-        if k == 'file_name':
-            batch_data[k] = sample[k]
-        else:
-            batch_data[k] = torch.tensor(sample[k], device="cuda:0")
-    return batch_data
 
 
 def main():
-    device = torch.device("cuda:0")
+    device = torch.device("cuda:1")
     # cfg = load_config("/home/qinguoqing/project/WDM3D/config/data/data.yaml", sub_cfg_keys=[])
+    vits = DINOv2("vits").to(device)
+    img = torch.randn((4, 3, 378, 1274), device=device)
+    feats = vits.get_intermediate_layers(img, [2, 5, 8, 11], return_class_token=True, reshape=True)
+    # pdb.set_trace()
+    print(feats)
 
 if __name__ == '__main__':
     main()

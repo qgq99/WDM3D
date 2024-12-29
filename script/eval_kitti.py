@@ -8,7 +8,7 @@
 
 from model.model import WDM3D
 from utils.wdm3d_utils import create_module,load_config
-from utils.eval_utils import post_3d
+from utils.eval_utils import post_3d, eval_from_scrach
 from dataset.kitti.kitti import KITTIDataset
 import argparse
 import torch
@@ -169,8 +169,8 @@ def main(args):
             det_3D[:, 1:] = np.around(det_3D[:, 1:].astype(np.float64), decimals=5)
             np.savetxt('{}/{}.txt'.format(save_dir_exp, file_name), det_3D, fmt='%s')
         post_3d(save_dir_exp, save_dir_exp)
-        eval.eval_from_scrach(args.gt_dir, save_dir_exp, ap_mode=11)
-        eval.eval_from_scrach(args.gt_dir, save_dir_exp, ap_mode=40)
+        eval_from_scrach(args.gt_dir, save_dir_exp, ap_mode=11)
+        eval_from_scrach(args.gt_dir, save_dir_exp, ap_mode=40)
 
 if __name__ == '__main__':
     main(get_arg_parser().parse_args())
