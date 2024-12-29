@@ -21,8 +21,8 @@ def main():
     # cfg = load_config("/home/qinguoqing/project/WDM3D/config/data/data.yaml", sub_cfg_keys=[])
     vits = DINOv2("vits").to(device)
     img = torch.randn((4, 3, 378, 1274), device=device)
-    feats = vits.get_intermediate_layers(img, [2, 5, 8, 11], return_class_token=True, reshape=True)
-    # pdb.set_trace()
+    for _ in range(1000):
+        feats = vits.get_intermediate_layers(img, [2, 5, 8, 11], return_class_token=True, reshape=True)
     print(feats)
 
 if __name__ == '__main__':

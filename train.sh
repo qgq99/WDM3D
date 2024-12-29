@@ -2,7 +2,7 @@ export CUDA_VISIBLE_DEVICES=1
 
 
 title="regular_train"
-desc="调整了depth loss， 观察训练结果"
+desc="调整了depth loss, 只检测car一个类, 观察训练结果"
 
 
 cur_time=$(date "+%Y-%m-%d_%H_%M_%S")

@@ -3,7 +3,7 @@
 
 model:
     # ckpt: "/home/qinguoqing/project/WDM3D/output/train/check_effect_DA2_SiLogLoss_loss_2024-12-12_15_26_25/model_sd.pth"
-    detector_2d_ckpt: "/home/qinguoqing/project/WDM3D/weight/yolov9-s-sd.pth"
+    # detector_2d_ckpt: "/home/qinguoqing/project/WDM3D/weight/yolov9-s-sd.pth"
     backbone_ckpt: "/home/qinguoqing/project/WDM3D/weight/fastvit_t12.pth.tar"
 
 
