@@ -106,7 +106,7 @@ class WDM3DLoss(nn.Module):
                 gt无目标或检测结果无目标, 无从计算3d loss
                 """
                 print("gt无目标或检测结果无目标 0 3d loss")
-                loss_3d = loss_3d + 0   # 应将0替换某一正值, 且配置为参数
+                loss_3d = loss_3d + (0 if (len(bbox2d_pred[i]) == obj_cnt_each_img[i]) else 500)   # 应将0替换某一正值, 且配置为参数
             else:
                 # pdb.set_trace()
                 data = generate_data_for_loss(
