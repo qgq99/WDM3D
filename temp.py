@@ -8,39 +8,52 @@
 
 # from utils.wdm3d_utils import load_config, create_module, Timer
 import torch
-# from model.backbone.vit.dinov2 import DINOv2
-from model.depther.depth_anything_v2.dpt import DepthAnythingV2
+from model.model import project_depth_to_points
+from dataset.kitti.kitti_utils import Calibration
 import pdb
 import cv2
-from tqdm import tqdm
+import numpy as np
+# from tqdm import tqdm
 G = globals()
 
 
+# def calc_pseudo_LiDAR_point(depth: torch.Tensor, calib: list[Calibration]):
+#     """
+#     计算伪点云, 每个像素点都有一个深度, 因此每个像素对应一个点云中的点, shape[384, 1280]的深度图计算得到[491250, 3]的点云数据
+#     """
+#     pseudo_LiDAR_points = []
+#     # tmp_depths = depths.clone().detach().cpu()
+#     # tmp_depths = depth.cpu()
+#     # for d, calib in zip(tmp_depths, calibs):
+#     pdb.set_trace()
+#     pseudo_LiDAR_points.append(
+#         project_depth_to_points(calib, tmp_depths, max_high=100))
 
+#     return pseudo_LiDAR_points
 
 
 def main():
-    device = torch.device("cuda:1")
-    # cfg = load_config("/home/qinguoqing/project/WDM3D/config/data/data.yaml", sub_cfg_keys=[])
-    model_configs = {
-    'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]},
-    'vitb': {'encoder': 'vitb', 'features': 128, 'out_channels': [96, 192, 384, 768]},
-    'vitl': {'encoder': 'vitl', 'features': 256, 'out_channels': [256, 512, 1024, 1024]},
-    'vitg': {'encoder': 'vitg', 'features': 384, 'out_channels': [1536, 1536, 1536, 1536]}
-}
-    encoder = 'vits' # or 'vits', 'vitb', 'vitg'
+    # device = torch.device("cuda:1")
+    # cfg = load_config("/home/qinguoqing/project/WDM3D/config/exp/exp_depth_off.yaml")
+    depth_filepath = "/home/qinguoqing/dataset/kitti/train/depth/depth_maps_pred/000010.png"
+    calib = Calibration(
+        "/home/qinguoqing/dataset/kitti/train/calib/000010.txt")
 
-    model = DepthAnythingV2(**model_configs[encoder]).to(device)
+    print(calib.f_u, calib.f_v, calib.c_u, calib.c_v)
+    depth_map = cv2.imread(depth_filepath, -1)
+    depth_map = np.where(depth_map > 0, ((depth_map - 1) / 254) *
+                   (11.499794960021973 - 0) + 0, depth_map)  # 归一化的逆操作
+    
+    res = project_depth_to_points(calib, depth_map, 1)
+    res = np.concatenate((res, np.zeros((res.shape[0], 1))), axis=1)
+    res = res.astype(np.float32)
+    
 
-    model.load_state_dict(torch.load(f'/home/qinguoqing/project/WDM3D/weight/depth_anything_v2_vits.pth', map_location='cpu'))
+    np.save("000010_depth.npy", depth_map)
+    with open('pseudo_lidar.bin', 'wb') as f:
+        res.tofile(f)
 
-    model.eval()
-
-    raw_img = cv2.imread(f'/home/qinguoqing/dataset/kitti/train/image_2/000000.png')
-    # raw_img = torch.tensor(raw_img, device=device)
-    depth = model.infer_image(raw_img) # HxW raw depth map in numpy
-
-    print(depth)
+    # print(res.shape)
 
 
 if __name__ == '__main__':

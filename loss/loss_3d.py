@@ -397,6 +397,8 @@ def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=
     batch_lidar_density = []
     batch_dim = []
 
+    valid_instance_mask = [True] * bbox2d.shape[0]  # 可能出现某个实例的伪点云全无效的情况
+
     for i in range(bbox2d.shape[0]):
         # pdb.set_trace()
         # sample_points_cnt = RoI_points[i].shape[0]
@@ -412,18 +414,26 @@ def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=
 
         rand_ind = np.random.randint(
             0, y_ind_points.shape[0], sample_roi_points)
+        # print(rand_ind)
         depth_points_sample = y_ind_points[rand_ind]
         batch_RoI_points[i] = depth_points_sample
         depth_points_np_xz = depth_points_sample[:, [0, 2]]
 
+        # print(depth_points_sample)
         '''orient'''
         orient_set = [(i[1] - j[1]) / (i[0] - j[0]) for j in depth_points_np_xz
                       for i in depth_points_np_xz]
+        # print(f"orient_set cnt: {np.sum(np.isnan(orient_set))}")
+
+
         orient_sort = np.array(sorted(np.array(orient_set).reshape(-1)))
         orient_sort = np.arctan(orient_sort[~np.isnan(orient_sort)])
+        # print(f"orient_sort len: {len(orient_sort)}")
         orient_sort_round = np.around(orient_sort, decimals=1)
         set_orenit = list(set(orient_sort_round))
-
+        if len(set_orenit) == 0:
+            valid_instance_mask[i] = False
+            continue
         ind = np.argmax([np.sum(orient_sort_round == i) for i in set_orenit])
         orient = set_orenit[ind]
         if orient < 0:
@@ -467,4 +477,4 @@ def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=
         batch_lidar_orient=batch_lidar_orient,
         batch_lidar_density=np.array(batch_lidar_density),
         batch_dim=batch_dim
-    )
+    ), valid_instance_mask

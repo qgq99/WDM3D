@@ -19,6 +19,7 @@ from model.head import *
 from model.neck import *
 from model.layer import *
 from loguru import logger
+import open3d as o3d
 import pdb
 
 
@@ -81,11 +82,53 @@ def project_depth_to_points(calib, depth, max_high):
     rows, cols = depth.shape
     c, r = np.meshgrid(np.arange(cols), np.arange(rows))
     points = np.stack([c, r, depth])
-    points = points.reshape((-1, 3))
+    # points = points.reshape((-1, 3))
     # points = points.T
+
+    points = points.reshape((3, -1))
+    points = points.T
+
     cloud = calib.project_image_to_velo(points)
     valid = (cloud[:, 0] >= 0) & (cloud[:, 2] < max_high)
     return cloud[valid]
+
+
+def depth_to_point_cloud(depth_image, intrinsics):
+    """
+    将深度图转换为点云
+    :param depth_image: 深度图 (2D NumPy 数组)
+    :param intrinsics: 相机内参 (Camera Intrinsics)
+    :return: 点云 (open3d.geometry.PointCloud)
+    """
+    height, width = depth_image.shape
+    # pdb.set_trace()
+    # 获取相机内参
+    fx, fy, cx, cy = intrinsics['fx'], intrinsics['fy'], intrinsics['cx'], intrinsics['cy']
+
+    # 生成像素坐标网格
+    x_coords, y_coords = np.meshgrid(np.arange(width), np.arange(height))
+
+    # 根据深度图计算对应的3D坐标
+    depth_image = depth_image.numpy()
+    # z_coords = depth_image / 1000.0  # 假设深度单位是毫米，转换为米
+    z_coords = depth_image 
+    x_coords = (x_coords - cx) * z_coords / fx
+    y_coords = (y_coords - cy) * z_coords / fy
+
+    # 将 3D 坐标转化为点 (x, y, z)
+    # points = np.stack((x_coords, y_coords, z_coords), axis=-1)
+    points = np.stack((y_coords, x_coords, z_coords), axis=-1)
+
+    # 扁平化点云
+    points = points.reshape((-1, 3))
+
+    # 创建 Open3D 点云对象
+    point_cloud = o3d.geometry.PointCloud()
+    point_cloud.points = o3d.utility.Vector3dVector(points)
+
+    return np.asarray(point_cloud.points)
+
+
 
 
 def select_depth_and_project_to_points(depth, calib, bboxes):
@@ -93,6 +136,7 @@ def select_depth_and_project_to_points(depth, calib, bboxes):
     将bbox范围内的像素点选出来, 并用选出来的像素点计算为点云, 核心逻辑同project_depth_to_points
     """
     # single_img_pseudo_point_cloud = np.zeros((0, 3))
+
     single_img_pseudo_roi_point_cloud = []
     for [x1, y1, x2, y2] in bboxes:
         c, r = np.meshgrid(np.arange(x1, x2), np.arange(y1, y2))
@@ -103,6 +147,35 @@ def select_depth_and_project_to_points(depth, calib, bboxes):
             cloud = calib.project_image_to_velo(points)
             # pdb.set_trace()
             single_img_pseudo_roi_point_cloud.append(cloud)
+    # return single_img_pseudo_point_cloud
+    return single_img_pseudo_roi_point_cloud
+
+
+def generate_pseudo_point_cloud_with_open3d(depth, calib:Calibration, bboxes):
+    """
+    将bbox范围内的像素点选出来, 并用选出来的像素点计算伪点云, 使用open3d作为计算工具
+    """
+
+    intrinsics = {
+        'fx': calib.f_u,  # x轴焦距
+        'fy': calib.f_v,  # y轴焦距
+        'cx': calib.c_u,  # 光心x坐标
+        'cy': calib.c_v,  # 光心y坐标
+        # 'cx': 172.854,  # 光心x坐标
+        # 'cy': 609.5593  # 光心y坐标
+    }
+    single_img_pseudo_roi_point_cloud = []
+    # print(f"bbox cnt: {len(bboxes)}")
+    for [x1, y1, x2, y2] in bboxes:
+        # c, r = np.meshgrid(np.arange(x1, x2), np.arange(y1, y2))
+        # # pdb.set_trace()
+        # points = np.stack([c, r, depth[y1: y2, x1: x2]]).reshape((-1, 3))
+        # pdb.set_trace()
+        # if 0 not in points.shape:
+        #     cloud = calib.project_image_to_velo(points)
+        #     # pdb.set_trace()
+        #     single_img_pseudo_roi_point_cloud.append(cloud)
+        single_img_pseudo_roi_point_cloud.append(depth_to_point_cloud(depth[y1: y2, x1: x2], intrinsics))
     # return single_img_pseudo_point_cloud
     return single_img_pseudo_roi_point_cloud
 
@@ -371,3 +444,85 @@ class WDM3DDepthOff(nn.Module):
 
         logger.success(
             f"Successfully created WDM3D model, model parameter count: {calc_model_params_count(self):.2f}M")
+    
+    def forward(self, x, depths, calibs):
+        b, c, h, w = x.shape
+        device = x.device
+        features = self.backbone(x)
+
+        # pdb.set_trace()
+        detector_2d_output = self.detector_2d(x)
+        # pdb.set_trace()
+        bbox_2d = non_max_suppression(
+            detector_2d_output[0][0].detach(), conf_thres=0.1, max_det=10)
+        bbox_2d = [i.detach() for i in bbox_2d]     # predicted bbox do not need gradient
+
+        # depth_pred, depth_feat = self.depther(features, h, w)
+        # pdb.set_trace()
+        pes =  [calc_pe(h, w, calib) for calib in calibs]
+        slope_maps = torch.stack([generate_slope_map(p, d.detach().cpu()) for p, d in zip(pes, depths)]).to(device)
+
+        # pdb.set_trace()
+        neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(
+            features, h, w, slope_maps)
+
+        # pdb.set_trace()
+        pseudo_LiDAR_points = self.calc_selected_pseudo_LiDAR_point_with_open3d(
+            depths, bbox_2d, calibs, img_size=(h, w))
+
+        # print(pseudo_LiDAR_points)
+
+        depth_aware_feats = self.neck_fusion(neck_output_feats)
+
+        pred = self.head(depth_aware_feats, bbox_2d)
+        """
+        detector_2d_output[1] is for yolov9 loss
+        """
+        return pred, bbox_2d, detector_2d_output[1], pseudo_LiDAR_points
+    
+    def calc_selected_pseudo_LiDAR_point(self, depths: torch.Tensor, bboxes: list[np.ndarray], calibs: list[Calibration], img_size=(384, 1280)):
+        """
+        将bbox范围内的像素点选出来, 然后只用这些点计算伪点云
+        depths: [bs, h, w]
+        bboxes: [n, k], k >= 4, [x1, y1, x2, y2, ...]
+        img_size: 图像尺寸, (h, w), 预测得到的bbox可能坐标超出图像范围, 需要clamp
+        """
+        # pdb.set_trace()
+
+        bboxes = clamp_bboxes(bboxes, h=img_size[0], w=img_size[1])
+
+        pseudo_LiDAR_points = []
+        # tmp_depths = depths.clone().detach().cpu()
+        tmp_depths = [d.detach().cpu() for d in depths]
+        for d, calib, bbox in zip(tmp_depths, calibs, bboxes):
+            # bbox = bbox.clone().detach().type(torch.int32).cpu()
+            bbox = bbox.detach().type(torch.int32).cpu()
+            # pdb.set_trace()
+            pseudo_LiDAR_points.append(
+                select_depth_and_project_to_points(d, calib, bbox[:, :4]))
+
+        return pseudo_LiDAR_points
+    
+
+    def calc_selected_pseudo_LiDAR_point_with_open3d(self, depths: torch.Tensor, bboxes: list[np.ndarray], calibs: list[Calibration], img_size=(384, 1280)):
+        """
+        将bbox范围内的像素点选出来, 然后只用这些点计算伪点云
+        depths: [bs, h, w]
+        bboxes: [n, k], k >= 4, [x1, y1, x2, y2, ...]
+        img_size: 图像尺寸, (h, w), 预测得到的bbox可能坐标超出图像范围, 需要clamp
+        """
+        # pdb.set_trace()
+
+        bboxes = clamp_bboxes(bboxes, h=img_size[0], w=img_size[1])
+
+        pseudo_LiDAR_points = []
+        # tmp_depths = depths.clone().detach().cpu()
+        tmp_depths = [d.detach().cpu() for d in depths]
+        for d, calib, bbox in zip(tmp_depths, calibs, bboxes):
+            # bbox = bbox.clone().detach().type(torch.int32).cpu()
+            bbox = bbox.detach().type(torch.int32).cpu()
+            # pdb.set_trace()
+            pseudo_LiDAR_points.append(
+                generate_pseudo_point_cloud_with_open3d(d, calib, bbox[:, :4]))
+
+        return pseudo_LiDAR_points

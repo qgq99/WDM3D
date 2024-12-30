@@ -1,0 +1,51 @@
+
+
+
+model:
+    # ckpt: "/home/qinguoqing/project/WDM3D/output/train/check_effect_DA2_SiLogLoss_loss_2024-12-12_15_26_25/model_sd.pth"
+    detector_2d_ckpt: "/home/qinguoqing/project/WDM3D/weight/yolov9-s-sd.pth"
+    # backbone_ckpt: "/home/qinguoqing/project/WDM3D/weight/fastvit_t12.pth.tar"
+
+
+
+    backbone:
+        module: "fastvit_t12"
+        params: 
+            fork_feat: True
+        # module: "DINOv2"
+        # params: 
+        #     model_name: "vits"
+
+    # depther:
+    #     module: "DADepther"
+    #     params: {}
+
+
+    
+    neck: 
+        module: "build_composed_neck"
+        params:
+            config_filepath: "/home/qinguoqing/project/WDM3D/config/neck/neck.yaml"
+    
+    neck_fusion:
+        module: "FusionModule"
+        params: {}
+
+    detector_2d:
+        module: "DetectionModel"
+        params:
+            cfg: "/home/qinguoqing/project/WDM3D/config/yolo/yolov9-s.yaml"
+
+
+    head:
+        module: "WDM3DHead"
+        params:
+            horizon_head: 
+                module: "HorizonHead"
+                params:
+                    in_channel: 512
+                    mid_channel: 512
+            predictor_head:
+                module: "WDM3DPredictorHead"
+                params: 
+                    channels: 512
