@@ -155,28 +155,15 @@ def generate_pseudo_point_cloud_with_open3d(depth, calib:Calibration, bboxes):
     """
     将bbox范围内的像素点选出来, 并用选出来的像素点计算伪点云, 使用open3d作为计算工具
     """
-
     intrinsics = {
         'fx': calib.f_u,  # x轴焦距
         'fy': calib.f_v,  # y轴焦距
         'cx': calib.c_u,  # 光心x坐标
         'cy': calib.c_v,  # 光心y坐标
-        # 'cx': 172.854,  # 光心x坐标
-        # 'cy': 609.5593  # 光心y坐标
     }
     single_img_pseudo_roi_point_cloud = []
-    # print(f"bbox cnt: {len(bboxes)}")
     for [x1, y1, x2, y2] in bboxes:
-        # c, r = np.meshgrid(np.arange(x1, x2), np.arange(y1, y2))
-        # # pdb.set_trace()
-        # points = np.stack([c, r, depth[y1: y2, x1: x2]]).reshape((-1, 3))
-        # pdb.set_trace()
-        # if 0 not in points.shape:
-        #     cloud = calib.project_image_to_velo(points)
-        #     # pdb.set_trace()
-        #     single_img_pseudo_roi_point_cloud.append(cloud)
         single_img_pseudo_roi_point_cloud.append(depth_to_point_cloud(depth[y1: y2, x1: x2], intrinsics))
-    # return single_img_pseudo_point_cloud
     return single_img_pseudo_roi_point_cloud
 
 
@@ -407,7 +394,7 @@ class WDM3DDepthOff(nn.Module):
         self.neck: nn.Module
         self.neck_fusion: nn.Module
         # self.depther: nn.Module
-        self.detector_2d: nn.Module
+        # self.detector_2d: nn.Module
         self.head: nn.Module
 
         if isinstance(config, str):
@@ -416,13 +403,13 @@ class WDM3DDepthOff(nn.Module):
         else:
             self.cfg = config
 
-        for prop in ["backbone", "neck", "neck_fusion", "detector_2d", "head"]:
+        for prop in ["backbone", "neck", "neck_fusion", "head"]:
             setattr(self, prop, create_module(G, self.cfg, prop))
 
-        if type(self.detector_2d) == DetectionModel:
-            # **if use yolov9 as the 2d detector, attach hyperparameters to it for its loss computation**
-            self.detector_2d.hyp = load_config(
-                "/home/qinguoqing/project/WDM3D/config/yolo/hyp.scratch-high.yaml", sub_cfg_keys=[])
+        # if type(self.detector_2d) == DetectionModel:
+        #     # **if use yolov9 as the 2d detector, attach hyperparameters to it for its loss computation**
+        #     self.detector_2d.hyp = load_config(
+        #         "/home/qinguoqing/project/WDM3D/config/yolo/hyp.scratch-high.yaml", sub_cfg_keys=[])
 
         # ================================load pretrained weight======================================================
         # pdb.set_trace()
@@ -430,11 +417,12 @@ class WDM3DDepthOff(nn.Module):
             self.load_state_dict(torch.load(config["ckpt"], weights_only=True))
             logger.success(f"Successfully loaded ckeckpoint: {config['ckpt']}")
 
-        if "detector_2d_ckpt" in config and os.path.exists(config["detector_2d_ckpt"]):
-            self.detector_2d.load_state_dict(torch.load(
-                config["detector_2d_ckpt"], weights_only=True))
-            logger.success(
-                f"Successfully loaded detector_2d_ckpt: {config['detector_2d_ckpt']}")
+        # if "detector_2d_ckpt" in config and os.path.exists(config["detector_2d_ckpt"]):
+        #     self.detector_2d.load_state_dict(torch.load(
+        #         config["detector_2d_ckpt"], weights_only=True))
+        #     # self.detector_2d.eval()
+        #     logger.success(
+        #         f"Successfully loaded detector_2d_ckpt: {config['detector_2d_ckpt']}")
 
         if type(self.backbone) == FastViT and "backbone_ckpt" in config and os.path.exists(config["backbone_ckpt"]):
             self.backbone.load_state_dict(torch.load(
@@ -445,17 +433,64 @@ class WDM3DDepthOff(nn.Module):
         logger.success(
             f"Successfully created WDM3D model, model parameter count: {calc_model_params_count(self):.2f}M")
     
-    def forward(self, x, depths, calibs):
+    def forward(self, x, depths, bbox_2d, calibs):
+        b, c, h, w = x.shape
+        device = x.device
+        features = self.backbone(x)
+        # pdb.set_trace()
+        # pdb.set_trace()
+        # detector_2d_output = self.detector_2d(x)
+        # # pdb.set_trace()
+        # bbox_2d = non_max_suppression(
+        #     detector_2d_output[0][0].detach(), conf_thres=0.1, max_det=10)
+        # pdb.set_trace()
+        # bbox_2d = [i.detach() for i in bbox_2d]     # predicted bbox do not need gradient
+        # pdb.set_trace()
+        # bbox_2d = [i[i[:, -1] == 2] for i in bbox_2d]   # filter out Car objs
+        
+        # for i in range(len(bbox_2d)):
+        #     bbox_2d[i][:, -1] = 0
+
+
+
+        # depth_pred, depth_feat = self.depther(features, h, w)
+        # pdb.set_trace()
+        # pes =  [calc_pe(h, w, calib) for calib in calibs]
+        # slope_maps = torch.stack([generate_slope_map(p, d.detach().cpu()) for p, d in zip(pes, depths)]).to(device)
+
+        # # pdb.set_trace()
+        # neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(
+        #     features, h, w, slope_maps)
+
+        # pdb.set_trace()
+        pseudo_LiDAR_points = self.calc_selected_pseudo_LiDAR_point_with_open3d(
+            depths, bbox_2d, calibs, img_size=(h, w))
+
+        # print(pseudo_LiDAR_points)
+
+        # depth_aware_feats = self.neck_fusion(neck_output_feats)
+        # pdb.set_trace()
+        # pred = self.head(depth_aware_feats, bbox_2d)
+        pred = self.head(features, bbox_2d)
+        """
+        detector_2d_output[1] is for yolov9 loss
+        """
+        return pred, pseudo_LiDAR_points
+
+    
+    def forward_test(self, x, depths, bbox_2d, calibs):
         b, c, h, w = x.shape
         device = x.device
         features = self.backbone(x)
 
         # pdb.set_trace()
-        detector_2d_output = self.detector_2d(x)
+        # detector_2d_output = self.detector_2d(x)
+        # # pdb.set_trace()
+        # bbox_2d = non_max_suppression(
+        #     detector_2d_output[0][0].detach(), conf_thres=0.1, max_det=10)
+        # bbox_2d = [i.detach() for i in bbox_2d]     # predicted bbox do not need gradient
         # pdb.set_trace()
-        bbox_2d = non_max_suppression(
-            detector_2d_output[0][0].detach(), conf_thres=0.1, max_det=10)
-        bbox_2d = [i.detach() for i in bbox_2d]     # predicted bbox do not need gradient
+        # bbox_2d = [i for i in bbox_2d if i[-1] == 2]
 
         # depth_pred, depth_feat = self.depther(features, h, w)
         # pdb.set_trace()
@@ -467,8 +502,8 @@ class WDM3DDepthOff(nn.Module):
             features, h, w, slope_maps)
 
         # pdb.set_trace()
-        pseudo_LiDAR_points = self.calc_selected_pseudo_LiDAR_point_with_open3d(
-            depths, bbox_2d, calibs, img_size=(h, w))
+        # pseudo_LiDAR_points = self.calc_selected_pseudo_LiDAR_point_with_open3d(
+        #     depths, bbox_2d, calibs, img_size=(h, w))
 
         # print(pseudo_LiDAR_points)
 
@@ -478,7 +513,7 @@ class WDM3DDepthOff(nn.Module):
         """
         detector_2d_output[1] is for yolov9 loss
         """
-        return pred, bbox_2d, detector_2d_output[1], pseudo_LiDAR_points
+        return pred[1]
     
     def calc_selected_pseudo_LiDAR_point(self, depths: torch.Tensor, bboxes: list[np.ndarray], calibs: list[Calibration], img_size=(384, 1280)):
         """

@@ -134,7 +134,7 @@ def format_sec(s):
     return day + hour + minute + f"{seconds:.4f}秒"
 
 
-def get_current_time(format="%Y-%m-%d %H:%M:%S"):
+def get_current_time(format="%Y_%m_%d_%H_%M_%S"):
     return time.strftime(format, time.localtime(time.time()))
 
 

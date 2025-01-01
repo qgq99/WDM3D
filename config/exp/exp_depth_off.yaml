@@ -7,7 +7,7 @@ model: "/home/qinguoqing/project/WDM3D/config/model/WDM3DDepthOff.yaml"
 loss:
     module: "WDM3DDepthOffLoss"
     params: 
-        sample_roi_points: 150
+        sample_roi_points: 300
         dim_prior: [[0.8, 1.8, 0.8], [0.6, 1.8, 1.8], [1.6, 1.8, 4.]]
         loss_weights: [1, 0.5]     # 依次为loss_3d, , bbox2d_loss的权重
         inf_pixel_loss: 0.001
@@ -23,4 +23,4 @@ loss:
 optimizer:
     module: "Adam"
     params:
-        lr: 0.0005
+        lr: 0.01

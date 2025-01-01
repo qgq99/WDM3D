@@ -640,6 +640,11 @@ class DualDDetect4WDM3D(nn.Module):
         """
         原本训练模式下, 此处直接返回[d1, d2], 由于WDM3D中需要bbox, 于是不直接返回
         """
+        ori_d1, ori_d2 = d1, d2
+
+        d1 = [d.detach() for d in d1]
+        d2 = [d.detach() for d in d2]
+
         if self.dynamic or self.shape != shape:
             self.anchors, self.strides = (d1.transpose(
                 0, 1) for d1 in make_anchors(d1, self.stride, 0.5))
@@ -665,7 +670,9 @@ class DualDDetect4WDM3D(nn.Module):
         # logger.info(f"predicted box:\n{dbox}")
         y = [torch.cat((dbox, cls.sigmoid()), 1),
              torch.cat((dbox2, cls2.sigmoid()), 1)]
-        return y if self.export else (y, [d1, d2])
+        
+
+        return y if self.export else (y, [ori_d1, ori_d2])
         # y = torch.cat((dbox2, cls2.sigmoid()), 1)
         # return y if self.export else (y, d2)
         # y1 = torch.cat((dbox, cls.sigmoid()), 1)

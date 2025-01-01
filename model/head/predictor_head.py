@@ -9,6 +9,7 @@
 import torch
 from torch import nn
 from torchvision.ops import roi_align
+from torch.nn import functional as F
 import pdb
 
 
@@ -46,27 +47,18 @@ class WDM3DPredictorHead(nn.Module):
     def forward(self, feature: torch.Tensor, bbox: torch.Tensor):
         b, c, h, w = feature.shape
         bbox = [item[:, :4] for item in bbox]
-        # pdb.set_trace()
     
         location_xy, location_z, orientation_conf = [], [], []
         for i in range(b):
-            # if type(bbox) == list:
-            #     f = roi_align(
-            #         feature, [i/16 for i in bbox], (7, 7))
-            # else:
+            f = roi_align(feature[i].unsqueeze(0), [bbox[i] / 32], (7, 7))  # 除以的数值为feature的下采样倍率
 
-            f = roi_align(feature[i].unsqueeze(0), [bbox[i] / 16], (7, 7))
-
+            print(f"{torch.sum(f == 0) / torch.numel(f)}, {torch.sum(f == 0)}, {torch.numel(f)}")
             f = f.view(-1, self.channels * 7 * 7)
-            # pdb.set_trace()
             location_xy.append(self.location_xy(f))
-            # location_xy = location_xy.view(-1, 2)
-            # location_z = self.location_z(f).view(-1, 1)
             location_z.append(self.location_z(f))
-            # orientation_conf = self.orientation_conf(f).view(-1, 2)
+            print(location_z[-1])
             orientation_conf.append(self.orientation_conf(f))
 
-            # print(location_xy.shape, [i.shape for i in bbox])
 
         # pdb.set_trace()
         return location_xy, location_z, orientation_conf

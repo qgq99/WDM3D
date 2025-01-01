@@ -151,12 +151,12 @@ class WDM3DDepthOffLoss(nn.Module):
         self.loss_weights = loss_weights
         # self.inf_pixel_loss = inf_pixel_loss
         # self.depth_loss = create_module(G, config, "depth_loss")
-        self.bbox2d_loss = create_module(
-            G, config, "bbox2d_loss", model=model.detector_2d)
+        # self.bbox2d_loss = create_module(
+        #     G, config, "bbox2d_loss", model=model.detector_2d)
 
         # self.siLogLoss = SiLogLoss()
 
-    def forward(self, roi_points, bbox2d_pred, loss2d_feat, pred3d, bbox2d_gt, calibs, device=torch.device("cuda")):
+    def forward(self, roi_points, bbox2d_pred, pred3d, bbox2d_gt, calibs, device=torch.device("cuda")):
         """
         TODO: depth_gt总包含值为inf的像素点, 表示该像素点确实深度, 需要特别处理
         """
@@ -179,7 +179,7 @@ class WDM3DDepthOffLoss(nn.Module):
         #     depth_gt = torch.stack(depth_gt)
 
         # depth_loss = self.depth_loss(depth_pred, depth_gt)
-        bbox2d_loss = self.bbox2d_loss(loss2d_feat, bbox2d_gt)[0]
+        # bbox2d_loss = self.bbox2d_loss(loss2d_feat, bbox2d_gt)[0]
 
         loss_3d = torch.zeros(1, device=device)
         # pdb.set_trace()
@@ -200,6 +200,7 @@ class WDM3DDepthOffLoss(nn.Module):
             # """
             # 处理预测到的目标数量和标签目标数量不同的情况
             # """
+            # print(f"pred cnt: {len(bbox2d_pred[i])}, gt cnt: {obj_cnt_each_img[i]}")
             mn_obj_cnt = min(len(bbox2d_pred[i]), obj_cnt_each_img[i])
             # bbox2d_loss = bbox2d_loss + self.bbox2d_loss(
             #     bbox2d_pred[i][:mn_obj_cnt, :4], bbox2d_gt[i][:mn_obj_cnt])
@@ -231,8 +232,7 @@ class WDM3DDepthOffLoss(nn.Module):
                     roi_points[i], bbox2d, sample_roi_points=self.sample_roi_points, dim_prior=self.dim_prior)
                 # pdb.set_trace()
                 loss_3d = loss_3d + calc_3d_loss(
-                    pred_3D=(pred3d[0][i][:mn_obj_cnt], pred3d[1]
-                             [i][:mn_obj_cnt], pred3d[2][i][:mn_obj_cnt]),
+                    pred_3D=tuple(p[i][:mn_obj_cnt][valid_instance_mask] for p in pred3d),
                     batch_RoI_points=data["batch_RoI_points"],
                     bbox2d=bbox2d[:, :4][valid_instance_mask],
                     batch_lidar_y_center=data["batch_lidar_y_center"],
@@ -246,9 +246,8 @@ class WDM3DDepthOffLoss(nn.Module):
         # TODO: 考察depth loss出现极大值的原因
         # depth_loss if depth_loss < 1e15 else (depth_loss * 1e-15)
 
-        loss_3d = torch.abs(loss_3d)
+        # loss_3d = torch.abs(loss_3d)
 
-        total_loss = loss_3d * \
-            self.loss_weights[0] + bbox2d_loss * self.loss_weights[1]
+        total_loss = loss_3d * self.loss_weights[0]
         # pdb.set_trace()
-        return total_loss, loss_3d, bbox2d_loss
+        return total_loss, loss_3d

@@ -12,7 +12,9 @@ from utils.wdm3d_utils import load_config, create_module, create_dataloader, Tim
 from dataset.kitti.kitti import KITTIDataset
 from loss import WDM3DDepthOffLoss
 from torchvision.transforms import Compose, ToTensor
+from model.detector_2d.yolov9.yolo import DetectionModel
 # import cv2
+from utils.general import non_max_suppression
 import pdb
 import numpy as np
 import argparse
@@ -109,6 +111,13 @@ def main(args):
 
     batch_cnt = len(dataloader)  # 共有多少个batch
     # pdb.set_trace()
+    # pdb.set_trace()
+    detector_2d = create_module(G, config["model"], "detector_2d").to(device)
+    detector_2d.hyp = load_config(
+        "/home/qinguoqing/project/WDM3D/config/yolo/hyp.scratch-high.yaml", sub_cfg_keys=[])
+    detector_2d.load_state_dict(torch.load(config["model"]["detector_2d_ckpt"], weights_only=True))
+    detector_2d.eval()
+
     model = WDM3DDepthOff(config["model"]).to(device)
 
     loss_preocessor = create_module(G, config, "loss", model=model)
@@ -119,7 +128,7 @@ def main(args):
     """
     依次保存每个epoch的总loss, 平均总loss, 平均3dloss, 平均bbox2dloss, 平均depth loss
     """
-    sum_epoch_losses, avg_epoch_losses, avg_epoch_3dlosses, avg_bbox2d_losses = [], [], [], []
+    sum_epoch_losses, avg_epoch_losses, avg_epoch_3dlosses = [], [], []
     # pdb.set_trace()
     model.train()
     with Timer("the hole training process", printer=logger.success):
@@ -127,23 +136,30 @@ def main(args):
             with Timer(f"epoch {epoch_idx+1}", printer=logger.success):
                 cur_epoch_total_loss, cur_epoch_3dloss, cur_epoch_bbox2d_loss = 0, 0, 0
                 for batch_idx, (img, targets, original_idx) in enumerate(dataloader):
-                    with Timer(f"batch [{batch_idx}]", work=True):
+                    with Timer(f"batch [{batch_idx}]", work=False):
                         optimizer.zero_grad()
                         img = img.to(device)
                         targets = [t.to(device) for t in targets]
                         depths = [t.get_field("depth_map") for t in targets]
                         calibs = [t.get_field("calib") for t in targets]
+
                         # pdb.set_trace()
-                        # bbox_2d, loss2d_feat, depth_pred, pseudo_LiDAR_points, pred = model(
-                        #     img, targets)
-                        # pdb.set_trace()
-                        pred, bbox_2d, loss2d_feat, pseudo_LiDAR_points = model(img, depths, calibs)
-                        # pdb.set_trace()
+                        detector_2d_output = detector_2d(img)
+                        bbox_2d = non_max_suppression(
+                            detector_2d_output[0][0].detach(), conf_thres=0.1, max_det=10)
+                        bbox_2d = [i.detach() for i in bbox_2d]     # predicted bbox do not need gradient
+                        bbox_2d = [i[i[:, -1] == 2] for i in bbox_2d]   # filter out Car objs
                         # print(bbox_2d)
-                        total_loss, loss_3d, bbox2d_loss = loss_preocessor(
+                        pred, pseudo_LiDAR_points = model(
+                            img, depths, bbox_2d, calibs)
+                        # pdb.set_trace()
+                        
+                        # pdb.set_trace()
+                        # print([i.shape[0] for i in bbox_2d])
+                        total_loss, loss_3d = loss_preocessor(
                             roi_points=pseudo_LiDAR_points,
                             bbox2d_pred=bbox_2d,
-                            loss2d_feat=loss2d_feat,
+                            # loss2d_feat=loss2d_feat,
                             pred3d=pred[1],
                             bbox2d_gt=[t.get_field("bbox2d_gt")
                                        for t in targets],
@@ -151,11 +167,11 @@ def main(args):
                             device=device
                         )
                         logger.info(
-                            f"Epoch [{epoch_idx+1}/{epoch}], batch [{batch_idx+1}/{batch_cnt}], batch loss: [{total_loss.item()}], 3d loss: [{loss_3d.item()}], bbox2d_loss: [{bbox2d_loss.item()}], image index: {original_idx}")
+                            f"Epoch [{epoch_idx+1}/{epoch}], batch [{batch_idx+1}/{batch_cnt}], batch loss: [{total_loss.item()}], 3d loss: [{loss_3d.item()}], image index: {original_idx}")
 
                         cur_epoch_total_loss += total_loss.item()
                         cur_epoch_3dloss += loss_3d.item()
-                        cur_epoch_bbox2d_loss += bbox2d_loss.item()
+                        # cur_epoch_bbox2d_loss += bbox2d_loss.item()
 
                         total_loss.backward()
                         optimizer.step()
@@ -164,12 +180,12 @@ def main(args):
                 sum_epoch_losses.append(cur_epoch_total_loss)
                 avg_epoch_losses.append(cur_epoch_total_loss / batch_cnt)
                 avg_epoch_3dlosses.append(cur_epoch_3dloss / batch_cnt)
-                avg_bbox2d_losses.append(cur_epoch_bbox2d_loss / batch_cnt)
+                # avg_bbox2d_losses.append(cur_epoch_bbox2d_loss / batch_cnt)
                 # avg_depth_losses.append(cur_epoch_depth_loss / batch_cnt)
 
-    plot_loss_curve([sum_epoch_losses, avg_epoch_losses, avg_epoch_3dlosses, avg_bbox2d_losses], titles=[
-                    "sum_epoch_losses", "avg_epoch_losses", "avg_epoch_3dlosses", "avg_bbox2d_losses"],
-                    xlabels=["epoch"] * 4, ylabels=["loss"] * 4, output_dir=output_dir)
+    plot_loss_curve([sum_epoch_losses, avg_epoch_losses, avg_epoch_3dlosses], titles=[
+                    "sum_epoch_losses", "avg_epoch_losses", "avg_epoch_3dlosses"],
+                    xlabels=["epoch"] * 3, ylabels=["loss"] * 3, output_dir=output_dir)
 
     model_save_path = output_dir / "model_sd.pth"
     torch.save(model.state_dict(), model_save_path)

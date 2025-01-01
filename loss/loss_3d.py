@@ -388,10 +388,15 @@ def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=
     sample_roi_points: 一个实例采多少点
     """
     # pdb.set_trace()
-    batch_RoI_points = np.zeros(
-        (bbox2d.shape[0], sample_roi_points, 3), dtype=np.float32)
-    batch_lidar_y_center = np.zeros((bbox2d.shape[0], 1), dtype=np.float32)
-    batch_lidar_orient = np.zeros((bbox2d.shape[0], 1), dtype=np.float32)
+    # batch_RoI_points = np.zeros(
+    #     (bbox2d.shape[0], sample_roi_points, 3), dtype=np.float32)
+    # batch_lidar_y_center = np.zeros((bbox2d.shape[0], 1), dtype=np.float32)
+    # batch_lidar_orient = np.zeros((bbox2d.shape[0], 1), dtype=np.float32)
+
+    batch_RoI_points = []
+    batch_lidar_y_center = []
+    batch_lidar_orient = []
+
     # batch_lidar_density = np.zeros(
     #     (bbox2d.shape[0], sample_roi_points), dtype=np.float32)
     batch_lidar_density = []
@@ -404,7 +409,9 @@ def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=
         # sample_points_cnt = RoI_points[i].shape[0]
         # print(f"{i} {len(RoI_points)}")
         y_coor = RoI_points[i][:, 1]
-        batch_lidar_y_center[i] = np.mean(y_coor)
+        # batch_lidar_y_center[i] = np.mean(y_coor)
+        batch_lidar_y_center.append(np.mean(y_coor))
+
         y_thesh = (np.max(y_coor) + np.min(y_coor)) / 2
         y_ind = RoI_points[i][:, 1] > y_thesh
 
@@ -416,7 +423,8 @@ def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=
             0, y_ind_points.shape[0], sample_roi_points)
         # print(rand_ind)
         depth_points_sample = y_ind_points[rand_ind]
-        batch_RoI_points[i] = depth_points_sample
+        # batch_RoI_points[i] = depth_points_sample
+        batch_RoI_points.append(depth_points_sample)
         depth_points_np_xz = depth_points_sample[:, [0, 2]]
 
         # print(depth_points_sample)
@@ -433,6 +441,8 @@ def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=
         set_orenit = list(set(orient_sort_round))
         if len(set_orenit) == 0:
             valid_instance_mask[i] = False
+            batch_RoI_points.pop()
+            batch_lidar_y_center.pop()
             continue
         ind = np.argmax([np.sum(orient_sort_round == i) for i in set_orenit])
         orient = set_orenit[ind]
@@ -450,7 +460,7 @@ def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=
                 orient += np.pi / 2
             else:
                 orient -= np.pi / 2
-        batch_lidar_orient[i] = orient
+        batch_lidar_orient.append(orient)
 
         '''
         density
@@ -472,9 +482,9 @@ def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=
     batch_dim = torch.tensor(batch_dim)
     # pdb.set_trace()
     return dict(
-        batch_RoI_points=batch_RoI_points,
-        batch_lidar_y_center=batch_lidar_y_center,
-        batch_lidar_orient=batch_lidar_orient,
+        batch_RoI_points=np.array(batch_RoI_points),
+        batch_lidar_y_center=np.array(batch_lidar_y_center)[:, None],
+        batch_lidar_orient=np.array(batch_lidar_orient)[:, None],
         batch_lidar_density=np.array(batch_lidar_density),
         batch_dim=batch_dim
     ), valid_instance_mask
