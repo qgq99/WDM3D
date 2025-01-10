@@ -115,6 +115,8 @@ def depth_to_point_cloud(depth_image, intrinsics):
     x_coords = (x_coords - cx) * z_coords / fx
     y_coords = (y_coords - cy) * z_coords / fy
 
+    y_coords *= -1
+
     # 将 3D 坐标转化为点 (x, y, z)
     # points = np.stack((x_coords, y_coords, z_coords), axis=-1)
     points = np.stack((y_coords, x_coords, z_coords), axis=-1)
@@ -494,12 +496,12 @@ class WDM3DDepthOff(nn.Module):
 
         # depth_pred, depth_feat = self.depther(features, h, w)
         # pdb.set_trace()
-        pes =  [calc_pe(h, w, calib) for calib in calibs]
-        slope_maps = torch.stack([generate_slope_map(p, d.detach().cpu()) for p, d in zip(pes, depths)]).to(device)
+        # pes =  [calc_pe(h, w, calib) for calib in calibs]
+        # slope_maps = torch.stack([generate_slope_map(p, d.detach().cpu()) for p, d in zip(pes, depths)]).to(device)
 
-        # pdb.set_trace()
-        neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(
-            features, h, w, slope_maps)
+        # # pdb.set_trace()
+        # neck_output_feats, y, pe_mask, pe_slope_k_ori = self.neck(
+        #     features, h, w, slope_maps)
 
         # pdb.set_trace()
         # pseudo_LiDAR_points = self.calc_selected_pseudo_LiDAR_point_with_open3d(
@@ -507,7 +509,7 @@ class WDM3DDepthOff(nn.Module):
 
         # print(pseudo_LiDAR_points)
 
-        depth_aware_feats = self.neck_fusion(neck_output_feats)
+        depth_aware_feats = self.neck_fusion(features)
 
         pred = self.head(depth_aware_feats, bbox_2d)
         """

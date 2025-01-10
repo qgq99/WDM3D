@@ -348,12 +348,12 @@ def calc_3d_loss(pred_3D, batch_RoI_points, batch_lidar_y_center,
         single_density = torch.tensor(batch_lidar_density[i], device=device)
         single_lidar_center_y = torch.tensor(
             batch_lidar_y_center[i], device=device)
-
-        if single_loc[2] > 3:
+        # pdb.set_trace()
+        if single_loc[2] > -1:
             ray_tracing_loss = calc_dis_ray_tracing(single_wl, single_Ry, single_depth_points[:, [0, 2]], single_density,
                                                     (single_loc[0], single_loc[2]))
         else:
-            ray_tracing_loss = 0
+            ray_tracing_loss = 1
 
         shift_depth_points = torch.stack([single_depth_points[:, 0] - single_loc[0],
                                           single_depth_points[:, 2] - single_loc[2]], dim=1)
@@ -370,7 +370,8 @@ def calc_3d_loss(pred_3D, batch_RoI_points, batch_lidar_y_center,
         # ''' LiDAR 3D box orient loss'''
         # pdb.set_trace()
         orient_loss = -1 * torch.cos(single_Alpha - single_Ry_pred)
-
+        # pdb.set_trace()
+        # print(dis_error, center_loss, ray_tracing_loss, center_yloss, orient_loss)
         all_loss += dis_error + 0.1 * center_loss + ray_tracing_loss + \
             center_yloss + orient_loss
         count += 1
@@ -432,7 +433,6 @@ def generate_data_for_loss(RoI_points, bbox2d, sample_roi_points=100, dim_prior=
         orient_set = [(i[1] - j[1]) / (i[0] - j[0]) for j in depth_points_np_xz
                       for i in depth_points_np_xz]
         # print(f"orient_set cnt: {np.sum(np.isnan(orient_set))}")
-
 
         orient_sort = np.array(sorted(np.array(orient_set).reshape(-1)))
         orient_sort = np.arctan(orient_sort[~np.isnan(orient_sort)])

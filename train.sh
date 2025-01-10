@@ -1,8 +1,8 @@
 export CUDA_VISIBLE_DEVICES=1
 
 
-title="debug"
-desc="进一步将2d检测器离线，观察训练结果"
+title="regular_train"
+desc="调整了伪点云生成方法, 将所有y坐标*-1"
 
 
 cur_time=$(date "+%Y-%m-%d_%H_%M_%S")
@@ -33,22 +33,22 @@ output_dir=/home/qinguoqing/project/WDM3D/output/train/${title}_${cur_time}
 
 
 
-# nohup python script/train_depth_off.py \
-#     --title "${title}" \
-#     --desc "${desc}" \
-#     --config ${config_file} \
-#     --batch_size ${batch_size} \
-#     --epoch ${epoch} \
-#     --CUDA_VISIBLE_DEVICES ${CUDA_VISIBLE_DEVICES} \
-#     --output_dir ${output_dir} > console.txt &
-
-
-# 调试depth_off
-python script/train_depth_off.py \
-    --title ${title} \
+nohup python script/train_depth_off.py \
+    --title "${title}" \
     --desc "${desc}" \
     --config ${config_file} \
     --batch_size ${batch_size} \
     --epoch ${epoch} \
     --CUDA_VISIBLE_DEVICES ${CUDA_VISIBLE_DEVICES} \
-    --output_dir ${output_dir}
+    --output_dir ${output_dir} > console.txt &
+
+
+# 调试depth_off
+# python script/train_depth_off.py \
+#     --title ${title} \
+#     --desc "${desc}" \
+#     --config ${config_file} \
+#     --batch_size ${batch_size} \
+#     --epoch ${epoch} \
+#     --CUDA_VISIBLE_DEVICES ${CUDA_VISIBLE_DEVICES} \
+#     --output_dir ${output_dir}

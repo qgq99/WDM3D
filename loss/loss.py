@@ -246,7 +246,7 @@ class WDM3DDepthOffLoss(nn.Module):
         # TODO: 考察depth loss出现极大值的原因
         # depth_loss if depth_loss < 1e15 else (depth_loss * 1e-15)
 
-        # loss_3d = torch.abs(loss_3d)
+        loss_3d = torch.abs(loss_3d)
 
         total_loss = loss_3d * self.loss_weights[0]
         # pdb.set_trace()

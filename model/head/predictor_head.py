@@ -52,11 +52,11 @@ class WDM3DPredictorHead(nn.Module):
         for i in range(b):
             f = roi_align(feature[i].unsqueeze(0), [bbox[i] / 32], (7, 7))  # 除以的数值为feature的下采样倍率
 
-            print(f"{torch.sum(f == 0) / torch.numel(f)}, {torch.sum(f == 0)}, {torch.numel(f)}")
+            # print(f"{torch.sum(f == 0) / torch.numel(f)}, {torch.sum(f == 0)}, {torch.numel(f)}")
             f = f.view(-1, self.channels * 7 * 7)
             location_xy.append(self.location_xy(f))
             location_z.append(self.location_z(f))
-            print(location_z[-1])
+            # print(location_z[-1])
             orientation_conf.append(self.orientation_conf(f))
 
 

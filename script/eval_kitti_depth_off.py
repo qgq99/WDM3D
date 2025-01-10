@@ -50,7 +50,7 @@ def get_arg_parser():
     parser.add_argument("--CUDA_VISIBLE_DEVICES", default="0")
 
     parser.add_argument(
-        "--ckpt", default="/home/qinguoqing/project/WDM3D/output/train/regular_train_2024-12-31_17_19_15/model_sd.pth")
+        "--ckpt", default="/home/qinguoqing/project/WDM3D/output/train/regular_train_2025-01-02_16_56_19/model_sd.pth")
 
     parser.add_argument("--device", default="cuda:0")
 
@@ -104,17 +104,18 @@ def main(args):
                 else:
                     batch_input[k] = torch.tensor(sample[k], device=device)
 
-            calib = batch_input['calib']
-            P2 = batch_input['calib'].P
             bbox2d = batch_input['bbox2d'].cpu().numpy()
-            det_2D = batch_input['det_2D'].cpu().numpy()
-            file_name = batch_input['file_name']
-            depth_map = batch_input["depth_map"]
-
             # pdb.set_trace()
             if bbox2d.shape[0] < 1:
                 np.savetxt('{}/{}.txt'.format(save_dir_exp, file_name), np.array([]), fmt='%s')
                 continue
+            calib = batch_input['calib']
+            P2 = batch_input['calib'].P
+            file_name = batch_input['file_name']
+            depth_map = batch_input["depth_map"]
+            det_2D = batch_input['det_2D'].cpu().numpy()
+
+
             
 
 
@@ -123,7 +124,7 @@ def main(args):
             pred_3D = model.forward_test(img, [depth_map], [torch.tensor(bbox2d, device=device)], [calib])
 
             # bbox2d_pred = bbox2d_pred[0].cpu().numpy()
-            pdb.set_trace()
+            # pdb.set_trace()
             p_locxy, p_locZ, p_ortConf = pred_3D
             p_locxy, p_locZ, p_ortConf = p_locxy[0], p_locZ[0], p_ortConf[0]
 
